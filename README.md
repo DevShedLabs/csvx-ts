@@ -1,49 +1,79 @@
 # CSVX TypeScript Engine
 
-The planned TypeScript engine for the [CSVX specification](../csvx-spec). Like every engine in
-this project, it is specification-first: it will implement CSVX behavior, but its internal
-architecture does not define the format. See `AGENTS.md` and `../csvx-spec/AGENTS.md` for the
-binding rules.
+The TypeScript engine for the [CSVX specification](../csvx-spec). Like every engine in this
+project, it is specification-first: it implements CSVX behavior, but its internal architecture
+does not define the format. See `AGENTS.md` and `../csvx-spec/AGENTS.md` for the binding rules.
 
-## Current status: placeholder, no code yet
+## Current scope
 
-This repository does not contain an implementation. There is no `package.json`, no source, no
-tests — only this README, `AGENTS.md`, and `LICENSE`. Nothing described below exists yet.
+The initial pass provides the Phase 1 foundation, same shape as `csvx-go`:
 
-An earlier version of this README listed functionality (ZIP package loading, manifest/workbook
-loading, typed metadata structures, package/extract CLI commands) as already present. None of it
-was ever built in this checkout; that description was aspirational and got left in place as if it
-were current state. It has been corrected here so this file can be trusted.
+- CSVX ZIP package loading and writing (`loadWorkbookFromZip`/`writeWorkbookToZip`, buffer-based —
+  no filesystem access, so these work in a browser as well as Node)
+- Filesystem convenience wrappers (`openPackage`, `writePackage`, `openDirectory`,
+  `packageDirectory`, `extractPackage`) — the only place this engine touches `node:fs`
+- UTF-8 CSV sheet loading/writing, RFC 4180–compatible
+- Optional `.meta.json` sheet metadata: formulas, cached values, per-cell styles, validation
+- A data model generated from `../csvx-spec/schemas/*.json` (`src/schema/generated.ts`, via
+  `csvx-cli codegen --lang ts`), not hand-typed — see `AGENTS.md` for why that matters
+- Zip-slip-safe extraction (absolute/`..`/NUL-containing entry paths are rejected)
+- Structural, load-time validation (`validate()`)
 
-It is also worth noting that "package and extract CLI commands" was never a correct goal for this
-repo in the first place: `../csvx-spec/AGENTS.md` rule 1 is explicit that engine libraries —
-`csvx-go`, this repo, and any future one — must contain no CLI-shaped code (no argument parsing,
-no subcommands, no user-facing output formatting). That functionality belongs in `csvx-cli` only.
-
-## What this repo should become
-
-Following the same shape `csvx-go` already has:
-
-- A pure, programmable library: load, represent, edit, calculate, and write a CSVX workbook as
-  data structures. No subcommands, no stdout formatting, no CLI entry point.
-- A data model generated from `../csvx-spec/schemas/*.json`, not hand-typed. Run
-  `csvx-cli codegen --lang ts --schema-dir ../csvx-spec/schemas --out <path>` once `csvx-cli` is
-  on PATH (requires `json2ts`: `npm install -g json-schema-to-typescript`). Regenerate it every
-  time a schema changes — that is part of landing the schema change, not a later task.
-- A public API shaped for `csvx-web` to call directly in-browser once it exists (see
-  `../csvx-spec/AGENTS.md` rule 5): a load/edit/write surface usable from a bundler/browser
-  context, not just Node.
-- CI that validates this engine's real output against `../csvx-spec/schemas/*.json` (via
-  `../csvx-spec/validator/` until a native equivalent exists) and runs
-  `../csvx-spec/tests/*.json` conformance vectors — on every change, not as a manual afterthought.
+Not yet implemented: formula parsing/recalculation, XLSX import/export, full JSON-Schema
+conformance validation (that lives in `../csvx-spec/validator` for now), exact-duplicate-ZIP-entry
+rejection (see the comment on `assertSafeEntryNames` in `src/package.ts` for why that one specific
+check is a known gap rather than something faked).
 
 ## Development rule
 
-Each capability follows this sequence, same as every other repo in this project:
+Each capability follows this sequence:
 
 ```text
 Specify → create conformance fixtures → implement → run tests
 ```
 
-The specification repository (`../csvx-spec/`) is the authority. If a field or behavior doesn't
-already exist in `spec/`, `schemas/`, and `tests/`, fix `csvx-spec` first — don't invent it here.
+The specification repository is the authority: `../csvx-spec/`.
+
+## Usage
+
+```ts
+import { openPackage } from "@devshedlabs/csvx-ts";
+
+const workbook = await openPackage("report.csvx");
+console.log(workbook.sheets[0].records);
+```
+
+CSV is the canonical sheet data layer. Metadata that CSV cannot represent is stored in the
+matching `.meta.json` sidecar.
+
+To exercise this library from the command line, use
+[`csvx-cli`](https://github.com/DevShedLabs/csvx-cli) — this package is a library only; see
+`AGENTS.md` for why CLI-shaped code does not belong here.
+
+## Development
+
+```bash
+npm install                # install dependencies
+npm run codegen             # regenerate src/schema/generated.ts from ../csvx-spec/schemas
+npx tsc --noEmit             # type-check
+npx vitest run               # run tests (includes real csvx-spec/examples fixtures + schema validation)
+npm run build                # compile to dist/
+```
+
+### Pre-push checks (local, since GitHub Actions minutes are limited)
+
+`scripts/check.sh` runs the same checks CI would (type-check, test, build). Run it any time:
+
+```bash
+./scripts/check.sh
+```
+
+A git hook runs it automatically before every push, blocking the push if it fails. Enable it once
+per clone (this is local git config, not something that comes from cloning the repo):
+
+```bash
+git config core.hooksPath .githooks
+```
+
+Skip in a genuine emergency with `git push --no-verify` — prefer fixing the failure instead. See
+`../csvx-spec/AGENTS.md` section 6 for why this exists: it's the interim stand-in for real CI.

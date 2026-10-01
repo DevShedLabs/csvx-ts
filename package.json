@@ -1,0 +1,34 @@
+{
+  "name": "@devshedlabs/csvx-ts",
+  "version": "0.1.0",
+  "description": "TypeScript engine for the CSVX specification: load, represent, edit, and write CSVX workbooks as data structures. No CLI — see csvx-cli for that.",
+  "type": "module",
+  "main": "./dist/index.js",
+  "types": "./dist/index.d.ts",
+  "exports": {
+    ".": {
+      "types": "./dist/index.d.ts",
+      "import": "./dist/index.js"
+    }
+  },
+  "files": [
+    "dist"
+  ],
+  "scripts": {
+    "build": "tsc -p tsconfig.json",
+    "test": "vitest run",
+    "codegen": "csvx codegen --lang ts --schema-dir ../csvx-spec/schemas --out src/schema/generated.ts",
+    "check": "tsc --noEmit && vitest run"
+  },
+  "dependencies": {
+    "jszip": "^3.10.1"
+  },
+  "devDependencies": {
+    "@types/node": "^22.10.1",
+    "typescript": "^5.7.2",
+    "vitest": "^5.0.2"
+  },
+  "engines": {
+    "node": ">=18"
+  }
+}
