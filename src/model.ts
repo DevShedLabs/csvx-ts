@@ -15,6 +15,7 @@ import type {
   Validation,
   Value,
 } from "./schema/generated.js";
+import { parseFormattedLiteral } from "./format.js";
 
 export type Manifest = CSVXManifest;
 export type { Column, Validation, Value };
@@ -41,8 +42,14 @@ export type ScalarType = Value["type"];
  * a basic literal type in that case, so this falls back to the same narrow, well-established
  * inference (blank/boolean/integer/decimal by literal shape, otherwise string) rather than
  * defaulting everything untyped to "string" and silently breaking formula arithmetic over it. A
- * declared type (including an explicit "string") always wins and is never second-guessed. */
-export function resolveCellValue(raw: string | undefined, declaredType?: ScalarType): Value {
+ * declared type (including an explicit "string") always wins and is never second-guessed.
+ *
+ * `numberFormat` (the cell's resolved style numberFormat, if any) is tried first, per
+ * spec/08-styles.md's symmetric parsing allowance — "$7.00" against a `"$"#,##0.00` numberFormat
+ * resolves to decimal "7.00" rather than falling through to string just because it looks like
+ * currency text. See format.ts's parseFormattedLiteral for the documented, bounded subset this
+ * covers; anything outside it falls through to the plain literal-shape inference below. */
+export function resolveCellValue(raw: string | undefined, declaredType?: ScalarType, numberFormat?: string | null): Value {
   const text = raw ?? "";
   if (text === "") return { type: "blank" };
   if (declaredType) {
@@ -67,6 +74,8 @@ export function resolveCellValue(raw: string | undefined, declaredType?: ScalarT
         return { type: "string", value: text };
     }
   }
+  const formatted = parseFormattedLiteral(text, numberFormat);
+  if (formatted) return formatted as Value;
   const trimmed = text.trim();
   if (/^(?:true|false)$/i.test(trimmed)) return { type: "boolean", value: /^true$/i.test(trimmed) };
   if (/^[+-]?\d+$/.test(trimmed)) return { type: "integer", value: Number(trimmed) };

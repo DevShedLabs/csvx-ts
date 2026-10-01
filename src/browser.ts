@@ -15,4 +15,4 @@ export { evaluateFormula, recalculateCells } from "./calculate.js";
 export type { CellValue, CellValueType, FormulaCellInput, CellMap, ReferenceRequest, ReferenceResolver, RecalculateOptions } from "./calculate.js";
 export { parseFormula, FormulaParseError } from "./formula.js";
 export type { FormulaNode } from "./formula.js";
-export { formatValue } from "./format.js";
+export { formatValue, parseFormattedLiteral } from "./format.js";

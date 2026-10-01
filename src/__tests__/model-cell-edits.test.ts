@@ -23,6 +23,21 @@ describe("resolveCellValue", () => {
   it("never infers past a declared type, even one that produces an error", () => {
     expect(resolveCellValue("not a number", "integer")).toEqual({ type: "error", code: "VALUE" });
   });
+
+  it("parses a typed currency literal against the cell's own numberFormat instead of falling to string", () => {
+    expect(resolveCellValue("$7.00", undefined, '"$"#,##0.00')).toEqual({ type: "decimal", value: "7.00" });
+    expect(resolveCellValue("$1,234.56", undefined, '"$"#,##0.00')).toEqual({ type: "decimal", value: "1234.56" });
+    expect(resolveCellValue("$7", undefined, '"$"#,##0.00')).toEqual({ type: "integer", value: 7 });
+  });
+
+  it("falls through to generic inference when the text doesn't match the numberFormat's shape", () => {
+    expect(resolveCellValue("not money", undefined, '"$"#,##0.00')).toEqual({ type: "string", value: "not money" });
+    expect(resolveCellValue("42", undefined, '"$"#,##0.00')).toEqual({ type: "integer", value: 42 });
+  });
+
+  it("a declared type still wins outright over numberFormat-based parsing", () => {
+    expect(resolveCellValue("$7.00", "string", '"$"#,##0.00')).toEqual({ type: "string", value: "$7.00" });
+  });
 });
 
 describe("nextCellMetadata", () => {
