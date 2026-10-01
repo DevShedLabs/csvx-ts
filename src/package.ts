@@ -6,6 +6,8 @@
 import JSZip from "jszip";
 import { columnId } from "./columns.js";
 import { parseCSV, stringifyCSV } from "./csv.js";
+import { diagnosticForError, invalidResult } from "./diagnostics.js";
+import type { ValidationResult } from "./diagnostics.js";
 import type { CellMetadata, Column, Manifest, Sheet, SourceMetadata, Style, Workbook, WorkbookDocument } from "./model.js";
 
 const MANIFEST_PATH = "manifest.json";
@@ -138,6 +140,17 @@ export async function writeWorkbookToZip(workbook: Workbook): Promise<Uint8Array
   }
 
   return zip.generateAsync({ type: "uint8array" });
+}
+
+/** Browser-safe equivalent of validate.ts's path-based validate(): attempts to load the buffer
+ * and classifies the failure the same way, without ever touching a filesystem. */
+export async function validateBuffer(data: Uint8Array | ArrayBuffer | Blob): Promise<ValidationResult> {
+  try {
+    await loadWorkbookFromZip(data);
+  } catch (error) {
+    return invalidResult(diagnosticForError(error as Error));
+  }
+  return { valid: true, errors: [], warnings: [] };
 }
 
 function buildSheetFromCSV(entry: WorkbookDocument["sheets"][number], csvText: string): Sheet {

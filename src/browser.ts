@@ -7,6 +7,7 @@
 // parsing — this entry point is what makes that possible without a Node runtime.
 
 export * from "./model.js";
-export { loadWorkbookFromZip, writeWorkbookToZip } from "./package.js";
+export { loadWorkbookFromZip, writeWorkbookToZip, validateBuffer } from "./package.js";
 export { parseCSV, stringifyCSV } from "./csv.js";
 export { columnId } from "./columns.js";
+export type { Diagnostic, ValidationResult } from "./diagnostics.js";

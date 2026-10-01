@@ -19,8 +19,15 @@ describe("browser entry point", () => {
   it("exports the browser-safe package API", () => {
     expect(typeof browserEntry.loadWorkbookFromZip).toBe("function");
     expect(typeof browserEntry.writeWorkbookToZip).toBe("function");
+    expect(typeof browserEntry.validateBuffer).toBe("function");
     expect(typeof browserEntry.parseCSV).toBe("function");
     expect(typeof browserEntry.stringifyCSV).toBe("function");
     expect(typeof browserEntry.columnId).toBe("function");
+  });
+
+  it("validateBuffer classifies a non-ZIP buffer without touching the filesystem", async () => {
+    const result = await browserEntry.validateBuffer(new TextEncoder().encode("not a zip"));
+    expect(result.valid).toBe(false);
+    expect(result.errors[0]?.severity).toBe("error");
   });
 });

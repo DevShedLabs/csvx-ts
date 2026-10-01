@@ -17,7 +17,8 @@ The initial pass provides the Phase 1 foundation, same shape as `csvx-go`:
 - A data model generated from `../csvx-spec/schemas/*.json` (`src/schema/generated.ts`, via
   `csvx-cli codegen --lang ts`), not hand-typed — see `AGENTS.md` for why that matters
 - Zip-slip-safe extraction (absolute/`..`/NUL-containing entry paths are rejected)
-- Structural, load-time validation (`validate()`)
+- Structural, load-time validation (`validate()` for paths, `validateBuffer()` for in-memory ZIP
+  data — the latter is browser-safe and exported from `./browser` too)
 
 Not yet implemented: formula parsing/recalculation, XLSX import/export, full JSON-Schema
 conformance validation (that lives in `../csvx-spec/validator` for now), exact-duplicate-ZIP-entry
