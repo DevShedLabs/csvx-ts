@@ -74,6 +74,25 @@ export function resolveCellValue(raw: string | undefined, declaredType?: ScalarT
   return { type: "string", value: text };
 }
 
+/** Computes the next cell metadata object after an edit overwrites a cell's content, per
+ * spec/05-cell-values.md: `type`, `formula`, and `cached` describe a cell's *content* and must
+ * never survive past what they described, while `style`, `validation`, and any field this engine
+ * doesn't recognize (preserved per AGENTS.md rule 3.6) describe the cell itself and are untouched.
+ * Consumer apps must call this rather than deciding for themselves which fields survive an edit
+ * (AGENTS.md rule 5.2 — no second opinion about what a CSVX value/type means). A real bug this
+ * fixes: a cell XLSX-imported with an explicit `"type":"blank"` override (common — an import
+ * annotates its whole used range per-cell) silently ate any new literal value typed into it in
+ * csvx-web, because resolveCellValue(raw, "blank") always returns blank regardless of `raw` — the
+ * stale override has to be dropped at edit time, not worked around at read time.
+ *
+ * Pass `formula` when the new content is a formula (starts with "="); omit it for a literal edit.
+ * Returns `undefined` when nothing is left worth keeping (no metadata entry needed at all). */
+export function nextCellMetadata(existing: CellMetadata | undefined, formula?: string): CellMetadata | undefined {
+  const { formula: _formula, cached: _cached, type: _type, ...preserved } = existing ?? {};
+  if (formula) return { ...preserved, formula };
+  return Object.keys(preserved).length > 0 ? preserved : undefined;
+}
+
 export interface Calculation {
   mode?: "automatic" | "manual" | "on-load";
   iteration?: boolean;
