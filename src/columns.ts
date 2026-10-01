@@ -7,3 +7,13 @@ export function columnId(index: number): string {
   }
   return result;
 }
+
+/** Inverse of columnId: converts a spreadsheet-style letter ID to its zero-based column index
+ * ("A" -> 0, "AA" -> 26). Case-insensitive. */
+export function columnIndexFromId(id: string): number {
+  let index = 0;
+  for (const char of id.toUpperCase()) {
+    index = index * 26 + (char.charCodeAt(0) - "A".charCodeAt(0) + 1);
+  }
+  return index - 1;
+}
