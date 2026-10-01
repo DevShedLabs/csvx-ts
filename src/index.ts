@@ -13,3 +13,4 @@ export type { CellValue, CellValueType, FormulaCellInput, CellMap, ReferenceRequ
 export { parseFormula, FormulaParseError } from "./formula.js";
 export type { FormulaNode } from "./formula.js";
 export { formatValue, parseFormattedLiteral } from "./format.js";
+export { columnWidthToPixels, pixelsToColumnWidth, rowHeightToPixels, pixelsToRowHeight } from "./layout.js";
