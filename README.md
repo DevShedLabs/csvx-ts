@@ -36,11 +36,22 @@ The specification repository is the authority: `../csvx-spec/`.
 
 ## Usage
 
+In Node:
+
 ```ts
 import { openPackage } from "@devshedlabs/csvx-ts";
 
 const workbook = await openPackage("report.csvx");
 console.log(workbook.sheets[0].records);
+```
+
+In a browser (e.g. `csvx-web`), import the `/browser` subpath instead — the main entry
+transitively pulls in `node:fs/promises` via `node.ts`, which a bundler can't resolve client-side:
+
+```ts
+import { loadWorkbookFromZip } from "@devshedlabs/csvx-ts/browser";
+
+const workbook = await loadWorkbookFromZip(await file.arrayBuffer());
 ```
 
 CSV is the canonical sheet data layer. Metadata that CSV cannot represent is stored in the
