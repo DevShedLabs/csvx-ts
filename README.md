@@ -1,6 +1,6 @@
 # CSVX TypeScript Engine
 
-The TypeScript engine for the [CSVX specification](../csvx-spec). Like every engine in this
+The TypeScript engine for the [CSVX specification](https://github.com/DevShedLabs/csvx-spec). Like every engine in this
 project, it is specification-first: it implements CSVX behavior, but its internal architecture
 does not define the format. See `AGENTS.md` and `../csvx-spec/AGENTS.md` for the binding rules.
 
@@ -33,7 +33,7 @@ Each capability follows this sequence:
 Specify → create conformance fixtures → implement → run tests
 ```
 
-The specification repository is the authority: `../csvx-spec/`.
+The specification repository is the authority: `https://github.com/DevShedLabs/csvx-spec`.
 
 ## Usage
 
