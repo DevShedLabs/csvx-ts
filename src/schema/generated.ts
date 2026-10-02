@@ -36,6 +36,9 @@ export interface CSVXSheetMetadata {
   id?: Id;
   name?: string;
   columns?: Column[];
+  /**
+   * Row height by 1-based row number, in points (XLSX's own unit; its default row height is 15pt) — see spec/03-sheets.md.
+   */
   rowHeights?: {
     [k: string]: number;
   };
@@ -49,6 +52,9 @@ export interface Column {
   id: string;
   name?: string;
   type?: ScalarType;
+  /**
+   * XLSX character-width units (the number of '0' glyphs, in the workbook's default font, that fit the column, plus padding) — see spec/03-sheets.md for the canonical pixel conversion formula every engine must use.
+   */
   width?: number;
   [k: string]: unknown;
 }
@@ -72,6 +78,8 @@ export interface Validation {
   [k: string]: unknown;
 }
 
+export type BorderLineStyle = "none" | "thin" | "medium" | "thick" | "dashed" | "dotted" | "double";
+
 export interface CSVXStyles {
   styles: {
     id: string;
@@ -83,6 +91,12 @@ export interface CSVXStyles {
       [k: string]: unknown;
     };
     border?: {
+      style?: BorderLineStyle;
+      color?: string;
+      top?: BorderEdge;
+      right?: BorderEdge;
+      bottom?: BorderEdge;
+      left?: BorderEdge;
       [k: string]: unknown;
     };
     alignment?: {
@@ -93,6 +107,12 @@ export interface CSVXStyles {
     };
     [k: string]: unknown;
   }[];
+  [k: string]: unknown;
+}
+
+export interface BorderEdge {
+  style?: BorderLineStyle;
+  color?: string;
   [k: string]: unknown;
 }
 
