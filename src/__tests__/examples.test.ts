@@ -131,3 +131,23 @@ describeIfSpec("round-trip through a packaged .csvx file", () => {
     expect(await exists(path.join(extractedDir, "manifest.json"))).toBe(true);
   });
 });
+
+describe("print settings", () => {
+  // Real golden fixture: examples/print.csvx carries every print property plus one the schema does
+  // not define (headerFooter), which the spec requires to be preserved.
+  it("survive a load → write → load round trip, including unknown properties", async () => {
+    const source = path.join(EXAMPLES_DIR, "print.csvx");
+    const original = await openDirectory(source);
+    const print = original.sheets[0].print;
+    expect(print?.orientation).toBe("landscape");
+    expect(print?.paperSize).toBe("a4");
+    expect(print?.columnBreaks).toEqual([3]);
+    expect((print as Record<string, unknown>).headerFooter).toEqual({ oddFooter: "&P of &N" });
+
+    const out = path.join(await mkdtemp(path.join(tmpdir(), "csvx-print-")), "print.csvx");
+    await writePackage(original, out);
+    await validateAgainstSchema(out);
+    const reopened = await openPackage(out);
+    expect(reopened.sheets[0].print).toEqual(print);
+  });
+});

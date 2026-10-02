@@ -12,12 +12,14 @@ import type {
   CSVXWorkbook,
   Cell,
   Column,
+  Print,
   Validation,
   Value,
 } from "./schema/generated.js";
 import { parseFormattedLiteral } from "./format.js";
 
 export type Manifest = CSVXManifest;
+export type { Print };
 export type { Column, Validation, Value };
 export type CellMetadata = Cell;
 
@@ -139,6 +141,8 @@ export interface Sheet {
   columns: Column[];
   records: string[][];
   rowHeights?: Record<number, number>;
+  /** Print and pagination settings (spec/03-sheets.md). Unknown properties are preserved. */
+  print?: Print;
   cells?: Record<string, CellMetadata>;
 }
 

@@ -8,7 +8,7 @@ import { columnId } from "./columns.js";
 import { parseCSV, stringifyCSV } from "./csv.js";
 import { diagnosticForError, invalidResult } from "./diagnostics.js";
 import type { ValidationResult } from "./diagnostics.js";
-import type { CellMetadata, Column, Manifest, Sheet, SourceMetadata, Style, Workbook, WorkbookDocument } from "./model.js";
+import type { CellMetadata, Column, Manifest, Print, Sheet, SourceMetadata, Style, Workbook, WorkbookDocument } from "./model.js";
 
 const MANIFEST_PATH = "manifest.json";
 const SOURCE_PATH = "source/original.xlsx";
@@ -98,7 +98,7 @@ export async function writeWorkbookToZip(workbook: Workbook): Promise<Uint8Array
       throw new Error("sheet requires an id and name");
     }
     const path = sheet.path || `sheets/${sheet.id}.csv`;
-    const metadataPath = sheet.metadataPath || (sheet.cells && Object.keys(sheet.cells).length > 0 ? `sheets/${sheet.id}.meta.json` : undefined);
+    const metadataPath = sheet.metadataPath || ((sheet.cells && Object.keys(sheet.cells).length > 0) || sheet.print ? `sheets/${sheet.id}.meta.json` : undefined);
     document.sheets.push({ id: sheet.id, name: sheet.name, path, ...(metadataPath ? { metadata: metadataPath } : {}) });
     manifest.files.push(path);
     if (metadataPath) {
@@ -125,6 +125,7 @@ export async function writeWorkbookToZip(workbook: Workbook): Promise<Uint8Array
         name: sheet.name,
         columns: sheet.columns,
         rowHeights: sheet.rowHeights,
+        print: sheet.print,
         cells: sheet.cells,
       };
       zip.file(metadataPath, JSON.stringify(metadata, null, 2));
@@ -171,6 +172,7 @@ function applySheetMetadata(sheet: Sheet, metadataText: string, entry: WorkbookD
     name?: string;
     columns?: Column[];
     rowHeights?: Record<number, number>;
+    print?: Print;
     cells?: Record<string, CellMetadata>;
   };
   try {
@@ -188,6 +190,7 @@ function applySheetMetadata(sheet: Sheet, metadataText: string, entry: WorkbookD
     sheet.columns = resource.columns;
   }
   sheet.rowHeights = resource.rowHeights;
+  sheet.print = resource.print;
   sheet.cells = resource.cells;
 }
 

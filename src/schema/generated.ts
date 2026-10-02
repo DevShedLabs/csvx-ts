@@ -42,6 +42,7 @@ export interface CSVXSheetMetadata {
   rowHeights?: {
     [k: string]: number;
   };
+  print?: Print;
   cells?: {
     [k: string]: Cell;
   };
@@ -56,6 +57,36 @@ export interface Column {
    * XLSX character-width units (the number of '0' glyphs, in the workbook's default font, that fit the column, plus padding) — see spec/03-sheets.md for the canonical pixel conversion formula every engine must use.
    */
   width?: number;
+  [k: string]: unknown;
+}
+/**
+ * Print and pagination settings — see spec/03-sheets.md (Print settings) and spec/14-xlsx-interoperability.md.
+ */
+
+export interface Print {
+  orientation?: "portrait" | "landscape";
+  paperSize?: "letter" | "legal" | "tabloid" | "a3" | "a4" | "a5";
+  /**
+   * Inches, the unit XLSX uses.
+   */
+  margins?: {
+    top?: number;
+    right?: number;
+    bottom?: number;
+    left?: number;
+    [k: string]: unknown;
+  };
+  scale?: number;
+  fitToWidth?: number;
+  fitToHeight?: number;
+  area?: string;
+  repeatRows?: string;
+  repeatColumns?: string;
+  pageOrder?: "downThenOver" | "overThenDown";
+  gridlines?: boolean;
+  centerHorizontally?: boolean;
+  columnBreaks?: number[];
+  rowBreaks?: number[];
   [k: string]: unknown;
 }
 
