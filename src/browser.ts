@@ -9,6 +9,10 @@
 export * from "./model.js";
 export { loadWorkbookFromZip, writeWorkbookToZip, validateBuffer } from "./package.js";
 export { parseCSV, stringifyCSV } from "./csv.js";
+export { importCSV, CSVSyntaxError, sheetIdFromName } from "./csv-import.js";
+export type { CSVImportOptions, CSVImportResult, ImportWarning } from "./csv-import.js";
+export { literalType } from "./literal.js";
+export type { LiteralType } from "./literal.js";
 export { columnId, columnIndexFromId } from "./columns.js";
 export { HEADER_ROW, rowNumberFor, rowIndexFor, coordinateFor, indicesForCoordinate, rawCellText } from "./coordinates.js";
 export { buildCellMap, recalculateWorkbook, canonicalCellText } from "./recalculate.js";

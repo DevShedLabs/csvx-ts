@@ -17,6 +17,7 @@ import type {
   Value,
 } from "./schema/generated.js";
 import { parseFormattedLiteral } from "./format.js";
+import { literalType } from "./literal.js";
 
 export type Manifest = CSVXManifest;
 export type { Print };
@@ -78,11 +79,18 @@ export function resolveCellValue(raw: string | undefined, declaredType?: ScalarT
   }
   const formatted = parseFormattedLiteral(text, numberFormat);
   if (formatted) return formatted as Value;
-  const trimmed = text.trim();
-  if (/^(?:true|false)$/i.test(trimmed)) return { type: "boolean", value: /^true$/i.test(trimmed) };
-  if (/^[+-]?\d+$/.test(trimmed)) return { type: "integer", value: Number(trimmed) };
-  if (/^[+-]?\d+\.\d+$/.test(trimmed)) return { type: "decimal", value: trimmed };
-  return { type: "string", value: text };
+  // Untyped literal rules (spec/04-data-types.md, "Literal forms"): exact text forms only.
+  switch (literalType(text)) {
+    case "boolean":
+      return { type: "boolean", value: text === "true" };
+    case "integer":
+      // Beyond the safe-integer range a JS number would lose digits; keep the exact text.
+      return Number.isSafeInteger(Number(text)) ? { type: "integer", value: Number(text) } : { type: "string", value: text };
+    case "decimal":
+      return { type: "decimal", value: text };
+    default:
+      return { type: "string", value: text };
+  }
 }
 
 /** Computes the next cell metadata object after an edit overwrites a cell's content, per

@@ -8,6 +8,8 @@ import path from "node:path";
 import JSZip from "jszip";
 import { loadWorkbookFromZip, writeWorkbookToZip } from "./package.js";
 import type { Workbook } from "./model.js";
+import { importCSV } from "./csv-import.js";
+import type { CSVImportOptions, CSVImportResult } from "./csv-import.js";
 
 /** Reads a CSVX ZIP package (.csvx file) from disk. */
 export async function openPackage(filename: string): Promise<Workbook> {
@@ -102,4 +104,11 @@ async function addDirectoryToZip(zip: JSZip, root: string, current: string): Pro
     const contents = await readFile(fullPath);
     zip.file(relativePath, contents);
   }
+}
+
+/** Reads a CSV file and imports it (spec §11.1); the sheet name defaults to the file stem. */
+export async function importCSVFile(filename: string, options: CSVImportOptions = {}): Promise<CSVImportResult> {
+  const data = await readFile(filename);
+  const stem = path.basename(filename, path.extname(filename));
+  return importCSV(new Uint8Array(data), { ...options, name: options.name || stem || undefined });
 }
