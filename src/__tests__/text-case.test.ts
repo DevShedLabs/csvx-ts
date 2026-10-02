@@ -13,7 +13,7 @@ const have = await stat(VECTOR).then(
 );
 
 interface Case {
-  input: { mode: TextCaseMode; text: string; declaredType?: ScalarType; formula?: string };
+  input: { mode: TextCaseMode; text: string; declaredType?: ScalarType; formula?: string; header?: boolean };
   expected: string;
 }
 
@@ -22,7 +22,7 @@ describe.skipIf(!have)("csvx-spec/tests/edit/text-case.json", () => {
     const vector = JSON.parse(await readFile(VECTOR, "utf8")) as { cases: Case[] };
     expect(vector.cases.length).toBeGreaterThan(0);
     for (const { input, expected } of vector.cases) {
-      expect(changeCase(input.text, input.mode, { declaredType: input.declaredType, formula: input.formula }), JSON.stringify(input)).toBe(expected);
+      expect(changeCase(input.text, input.mode, { declaredType: input.declaredType, formula: input.formula, header: input.header }), JSON.stringify(input)).toBe(expected);
     }
   });
 });

@@ -10,6 +10,9 @@ export type TextCaseMode = "upper" | "lower" | "title";
 export interface ChangeCaseOptions {
   /** The cell's resolved type: its own override, else its column's. Omit when nothing declares one. */
   declaredType?: ScalarType;
+  /** True for a header cell (row 1): its text is a column name, so it is always a string and the
+   * column's declared type is ignored. */
+  header?: boolean;
   /** Present when the cell is a formula cell; formula cells are never changed. */
   formula?: string;
 }
@@ -24,6 +27,7 @@ const WORD_CHAR = /^[\p{L}\p{N}\p{M}]$/u;
 
 /** True when a cell's text is eligible for case conversion (spec: no formula, resolves to string). */
 export function isCaseEligible(text: string, options: ChangeCaseOptions = {}): boolean {
+  if (options.header) return text !== "";
   if (options.formula) return false;
   if (options.declaredType) return options.declaredType === "string" && text !== "";
   return literalType(text) === "string";
