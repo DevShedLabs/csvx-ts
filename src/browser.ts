@@ -12,6 +12,8 @@ export { parseCSV, stringifyCSV } from "./csv.js";
 export { importCSV, CSVSyntaxError, sheetIdFromName } from "./csv-import.js";
 export type { CSVImportOptions, CSVImportResult, ImportWarning } from "./csv-import.js";
 export { literalType } from "./literal.js";
+export { changeCase, isCaseEligible } from "./text-case.js";
+export type { TextCaseMode, ChangeCaseOptions } from "./text-case.js";
 export type { LiteralType } from "./literal.js";
 export { columnId, columnIndexFromId } from "./columns.js";
 export { HEADER_ROW, rowNumberFor, rowIndexFor, coordinateFor, indicesForCoordinate, rawCellText } from "./coordinates.js";
