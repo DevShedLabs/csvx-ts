@@ -6,6 +6,8 @@ export { loadWorkbookFromZip, writeWorkbookToZip, validateBuffer } from "./packa
 export { openPackage, writePackage, openDirectory, packageDirectory, extractPackage } from "./node.js";
 export { parseCSV, stringifyCSV } from "./csv.js";
 export { columnId, columnIndexFromId } from "./columns.js";
+export { HEADER_ROW, rowNumberFor, rowIndexFor, coordinateFor, indicesForCoordinate, rawCellText } from "./coordinates.js";
+export { buildCellMap, recalculateWorkbook, canonicalCellText } from "./recalculate.js";
 export { validate } from "./validate.js";
 export type { Diagnostic, ValidationResult } from "./diagnostics.js";
 export { evaluateFormula, recalculateCells } from "./calculate.js";
