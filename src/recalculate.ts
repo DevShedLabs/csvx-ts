@@ -3,7 +3,7 @@
 // visible CSV text. This is the one place the sheet → coordinate mapping happens (see
 // coordinates.ts), so formulas always see the cells the spec says they reference.
 
-import { recalculateCells } from "./calculate.js";
+import { recalculateSheets } from "./calculate.js";
 import type { CellMap, CellValue } from "./calculate.js";
 import { HEADER_ROW, coordinateFor, indicesForCoordinate, rawCellText } from "./coordinates.js";
 import { resolveCellValue } from "./model.js";
@@ -53,8 +53,9 @@ export function buildCellMap(sheet: Sheet, styles?: Style[]): CellMap {
 export function recalculateWorkbook(workbook: Workbook): Workbook {
   const cellMapsByName: Record<string, CellMap> = {};
   for (const sheet of workbook.sheets) cellMapsByName[sheet.name] = buildCellMap(sheet, workbook.styles);
+  const resultsByName = recalculateSheets(cellMapsByName, undefined, workbook.namedRanges);
   const sheets = workbook.sheets.map((sheet) => {
-    const results = recalculateCells(cellMapsByName[sheet.name] as CellMap, { resolveSheet: (name) => cellMapsByName[name] });
+    const results = resultsByName[sheet.name] as Record<string, CellValue>;
     if (Object.keys(results).length === 0) return sheet;
     const records = sheet.records.map((row) => [...row]);
     const cells = { ...sheet.cells };

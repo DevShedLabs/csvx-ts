@@ -6,7 +6,7 @@
 import { readdir, readFile, stat } from "node:fs/promises";
 import path from "node:path";
 import { describe, expect, it } from "vitest";
-import { evaluateFormula, recalculateCells, type CellMap, type CellValue } from "../calculate.js";
+import { evaluateFormula, recalculateCells, recalculateSheets, type CellMap, type CellValue } from "../calculate.js";
 
 const SPEC_ROOT = path.resolve(import.meta.dirname, "..", "..", "..", "csvx-spec");
 const FORMULAS_DIR = path.join(SPEC_ROOT, "tests", "formulas");
@@ -57,17 +57,32 @@ describeIfSpec("csvx-spec/tests/formulas/*.json", async () => {
   });
 });
 
+function toCellMap(cells: Record<string, any>): CellMap {
+  const map: CellMap = {};
+  for (const [coordinate, cell] of Object.entries(cells)) {
+    // Older vectors wrap a typed value as {"value": {...}}; newer ones give the typed value itself.
+    map[coordinate] = cell.formula ? { formula: cell.formula } : { value: cell.type ? cell : cell.value };
+  }
+  return map;
+}
+
 describeIfSpec("csvx-spec/tests/calculations/*.json", async () => {
   const vectors = await loadVectors(CALCULATIONS_DIR);
-  it.each(vectors)("$vector.id ($file)", ({ vector }) => {
-    expect(vector.operation).toBe("recalculate");
-    const cells: CellMap = {};
-    for (const [coordinate, cell] of Object.entries(vector.input.cells as Record<string, any>)) {
-      cells[coordinate] = cell.formula ? { formula: cell.formula } : { value: cell.type ? cell : cell.value };
+  const cases = vectors.flatMap(({ file, vector }) =>
+    (vector.cases ?? [vector]).map((c: any, i: number) => ({ file, id: `${vector.id}#${i + 1}`, operation: vector.operation, c })),
+  );
+  it.each(cases)("$id ($file)", ({ operation, c }) => {
+    if (operation === "recalculate-workbook") {
+      const sheets: Record<string, CellMap> = {};
+      for (const [name, cells] of Object.entries(c.input.sheets as Record<string, any>)) sheets[name] = toCellMap(cells);
+      const result = recalculateSheets(sheets, undefined, c.input.namedRanges);
+      for (const [name, expected] of Object.entries(c.expected as Record<string, Record<string, unknown>>)) {
+        for (const [coordinate, value] of Object.entries(expected)) expect(result[name]?.[coordinate], `${name}!${coordinate}`).toEqual(value);
+      }
+      return;
     }
-    const result = recalculateCells(cells);
-    for (const [coordinate, expected] of Object.entries(vector.expected as Record<string, unknown>)) {
-      expect(result[coordinate]).toEqual(expected);
-    }
+    expect(operation).toBe("recalculate");
+    const result = recalculateCells(toCellMap(c.input.cells));
+    for (const [coordinate, expected] of Object.entries(c.expected as Record<string, unknown>)) expect(result[coordinate], coordinate).toEqual(expected);
   });
 });

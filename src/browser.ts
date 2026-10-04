@@ -19,7 +19,7 @@ export { columnId, columnIndexFromId } from "./columns.js";
 export { HEADER_ROW, rowNumberFor, rowIndexFor, coordinateFor, indicesForCoordinate, rawCellText } from "./coordinates.js";
 export { buildCellMap, recalculateWorkbook, canonicalCellText } from "./recalculate.js";
 export type { Diagnostic, ValidationResult } from "./diagnostics.js";
-export { evaluateFormula, recalculateCells } from "./calculate.js";
+export { evaluateFormula, recalculateCells, recalculateSheets } from "./calculate.js";
 export type { CellValue, CellValueType, FormulaCellInput, CellMap, ReferenceRequest, ReferenceResolver, RecalculateOptions } from "./calculate.js";
 export { parseFormula, FormulaParseError } from "./formula.js";
 export type { FormulaNode } from "./formula.js";

@@ -8,6 +8,7 @@
 //   reference  = [sheet "!"] cell
 //   cell       = ["$"] column ["$"] row
 //   ref-error  = "#REF!"
+//   name       = identifier   (a declared workbook name, spec/02-workbook.md; undeclared is NAME)
 //   range      = reference ":" reference
 //
 // Precedence (highest to lowest), per spec/06: unary signs, percent, multiplication/division,
@@ -19,6 +20,7 @@ export type FormulaNode =
   | { kind: "string"; value: string }
   | { kind: "boolean"; value: boolean }
   | { kind: "ref-error" }
+  | { kind: "name"; name: string }
   | { kind: "reference"; sheet?: string; column: string; row: number }
   | { kind: "range"; start: FormulaNode & { kind: "reference" }; end: FormulaNode & { kind: "reference" } }
   | { kind: "call"; name: string; args: FormulaNode[] }
@@ -139,7 +141,7 @@ function tokenize(source: string): Token[] {
     }
     if (/[A-Za-z_$]/.test(ch)) {
       let j = i;
-      while (j < source.length && /[A-Za-z0-9_$]/.test(source[j] as string)) j++;
+      while (j < source.length && /[A-Za-z0-9_$.]/.test(source[j] as string)) j++;
       tokens.push({ type: "ident", value: source.slice(i, j) });
       i = j;
       continue;
@@ -233,6 +235,7 @@ export function parseFormula(source: string): FormulaNode {
       const upper = token.value.toUpperCase();
       if (upper === "TRUE" || upper === "FALSE") return { kind: "boolean", value: upper === "TRUE" };
       if (CELL_PATTERN.test(token.value)) return finishReferenceOrRange(parseReferenceFrom(undefined, token.value));
+      if (/^[A-Za-z_][A-Za-z0-9_.]*$/.test(token.value)) return { kind: "name", name: token.value };
       throw new FormulaParseError(`Unexpected identifier '${token.value}'`);
     }
     throw new FormulaParseError("Unexpected token in formula");

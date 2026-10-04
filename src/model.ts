@@ -112,6 +112,10 @@ export function nextCellMetadata(existing: CellMetadata | undefined, formula?: s
   return Object.keys(preserved).length > 0 ? preserved : undefined;
 }
 
+/** A workbook-scoped name (spec/02-workbook.md, Named ranges), the element type of
+ * CSVXWorkbook.namedRanges. */
+export type NamedRange = NonNullable<CSVXWorkbook["namedRanges"]>[number];
+
 export interface Calculation {
   mode?: "automatic" | "manual" | "on-load";
   iteration?: boolean;
@@ -159,6 +163,7 @@ export interface Workbook {
   id: string;
   version: string;
   sheets: Sheet[];
+  namedRanges?: NamedRange[];
   calculation?: Calculation;
   source?: SourceMetadata;
   styles?: Style[];
@@ -170,6 +175,7 @@ export interface WorkbookDocument {
   id: string;
   version: string;
   sheets: SheetEntry[];
+  namedRanges?: NamedRange[];
   calculation?: Calculation;
   source?: SourceMetadata;
   styles?: string;

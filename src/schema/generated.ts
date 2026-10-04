@@ -169,6 +169,20 @@ export interface CSVXWorkbook {
       [k: string]: unknown;
     }[]
   ];
+  /**
+   * Workbook-scoped names — spec/02-workbook.md (Named ranges).
+   */
+  namedRanges?: {
+    /**
+     * Must also not look like a cell reference, be TRUE or FALSE, or be a Core function name, and must be unique ignoring case (spec/02-workbook.md).
+     */
+    name: string;
+    /**
+     * A formula expression with sheet-qualified references (spec/02-workbook.md).
+     */
+    refersTo: string;
+    [k: string]: unknown;
+  }[];
   calculation?: {
     mode?: "automatic" | "manual" | "on-load";
     iteration?: boolean;

@@ -164,8 +164,45 @@ function isTruthy(value: CellValue): CellValue | boolean {
   return errorValue("VALUE");
 }
 
+/** A declared workbook name, resolved to its parsed `refersTo` (spec/02-workbook.md). */
+type NameTable = Map<string, FormulaNode | FormulaParseError>;
+
 interface EvalContext {
   resolveRef: ReferenceResolver;
+  names?: NameTable;
+  /** Set while evaluating a name's own `refersTo`, where names are not allowed. */
+  insideName?: boolean;
+}
+
+function buildNameTable(namedRanges: ReadonlyArray<{ name: string; refersTo: string }> | undefined): NameTable {
+  const table: NameTable = new Map();
+  for (const { name, refersTo } of namedRanges ?? []) {
+    try {
+      table.set(name.toLowerCase(), parseFormula(refersTo));
+    } catch (error) {
+      if (!(error instanceof FormulaParseError)) throw error;
+      table.set(name.toLowerCase(), error);
+    }
+  }
+  return table;
+}
+
+/** What a name stands for, or undefined when it is not declared (or is not usable here). */
+function lookupName(node: FormulaNode & { kind: "name" }, ctx: EvalContext): FormulaNode | undefined {
+  if (ctx.insideName) return undefined;
+  const target = ctx.names?.get(node.name.toLowerCase());
+  return target instanceof FormulaParseError ? undefined : target;
+}
+
+/** The values an aggregate argument contributes: a range (or a name that refers to one) expands to
+ * its cells, anything else is a single value. */
+function argumentValues(arg: FormulaNode, ctx: EvalContext): CellValue[] {
+  if (arg.kind === "range") return flattenRangeValues(arg, ctx);
+  if (arg.kind === "name") {
+    const target = lookupName(arg, ctx);
+    if (target?.kind === "range") return flattenRangeValues(target, { ...ctx, insideName: true });
+  }
+  return [evaluateNode(arg, ctx)];
 }
 
 function flattenRangeValues(node: FormulaNode & { kind: "range" }, ctx: EvalContext): CellValue[] {
@@ -208,7 +245,7 @@ function evaluateCall(node: FormulaNode & { kind: "call" }, ctx: EvalContext): C
       let sawDecimal = false;
       let sawAny = false;
       for (const arg of args) {
-        const values = arg.kind === "range" ? flattenRangeValues(arg, ctx) : [evaluateNode(arg, ctx)];
+        const values = argumentValues(arg, ctx);
         for (const value of values) {
           if (isError(value)) return value;
           if (!AGGREGATABLE.has(value.type)) continue;
@@ -226,7 +263,7 @@ function evaluateCall(node: FormulaNode & { kind: "call" }, ctx: EvalContext): C
     case "COUNT": {
       let count = 0;
       for (const arg of args) {
-        const values = arg.kind === "range" ? flattenRangeValues(arg, ctx) : [evaluateNode(arg, ctx)];
+        const values = argumentValues(arg, ctx);
         for (const value of values) {
           if (isError(value)) return value;
           if (AGGREGATABLE.has(value.type)) count++;
@@ -278,6 +315,10 @@ function evaluateNode(node: FormulaNode, ctx: EvalContext): CellValue {
       return { type: "boolean", value: node.value };
     case "ref-error":
       return errorValue("REF");
+    case "name": {
+      const target = lookupName(node, ctx);
+      return target ? evaluateNode(target, { ...ctx, insideName: true }) : errorValue("NAME");
+    }
     case "reference":
       return ctx.resolveRef({ sheet: node.sheet, column: node.column, row: node.row });
     case "range": {
@@ -346,56 +387,99 @@ function referenceCoordinate(ref: { sheet?: string; column: string; row: number 
   return `${ref.column}${ref.row + 1}`;
 }
 
-function collectReferences(node: FormulaNode, into: Array<{ sheet?: string; column: string; row: number }>): void {
+type Ref = { sheet?: string; column: string; row: number };
+type RangeRef = { sheet?: string; from: { column: number; row: number }; to: { column: number; row: number } };
+
+/** Collects the single-cell references and the ranges a formula reads. */
+function collectReferences(node: FormulaNode, cells: Ref[], ranges: RangeRef[], names: NameTable, insideName = false): void {
   switch (node.kind) {
+    case "name": {
+      const target = insideName ? undefined : names.get(node.name.toLowerCase());
+      if (target && !(target instanceof FormulaParseError)) collectReferences(target, cells, ranges, names, true);
+      return;
+    }
     case "reference":
-      into.push(node);
+      cells.push(node);
       return;
-    case "range":
-      into.push(node.start, node.end);
+    case "range": {
+      const a = columnIndexFromId(node.start.column);
+      const b = columnIndexFromId(node.end.column);
+      ranges.push({
+        sheet: node.start.sheet ?? node.end.sheet,
+        from: { column: Math.min(a, b), row: Math.min(node.start.row, node.end.row) },
+        to: { column: Math.max(a, b), row: Math.max(node.start.row, node.end.row) },
+      });
       return;
+    }
     case "call":
-      for (const arg of node.args) collectReferences(arg, into);
+      for (const arg of node.args) collectReferences(arg, cells, ranges, names, insideName);
       return;
     case "unary":
     case "percent":
-      collectReferences(node.operand, into);
+      collectReferences(node.operand, cells, ranges, names, insideName);
       return;
     case "binary":
-      collectReferences(node.left, into);
-      collectReferences(node.right, into);
+      collectReferences(node.left, cells, ranges, names, insideName);
+      collectReferences(node.right, cells, ranges, names, insideName);
       return;
     default:
       return;
   }
 }
 
-/** Recalculates every formula cell in a single-sheet coordinate map, in dependency order, per
- * spec/10-calculation.md. Returns a result only for cells that had a `formula` — plain value cells
- * are inputs, not outputs. Cells participating in a circular dependency all resolve to CYCLE. */
-export function recalculateCells(cells: CellMap, options: RecalculateOptions = {}): Record<string, CellValue> {
-  const asts = new Map<string, FormulaNode | FormulaParseError>();
-  const deps = new Map<string, Set<string>>();
+/** Recalculates every formula cell across a set of named sheets in dependency order, per
+ * spec/10-calculation.md. The graph has an edge for every cell a formula reads — each cell inside a
+ * range, and cells on other sheets — so a reference to another sheet's formula cell sees its
+ * calculated value, and a cycle that crosses sheets is CYCLE in every cell on it. A reference to a
+ * sheet that is not in `sheets` is REF. A declared name contributes the edges of its `refersTo`.
+ * Returns results only for cells that had a `formula`. */
+export function recalculateSheets(
+  sheets: Record<string, CellMap>,
+  external?: (sheetName: string) => CellMap | undefined,
+  namedRanges?: ReadonlyArray<{ name: string; refersTo: string }>,
+): Record<string, Record<string, CellValue>> {
+  const names = buildNameTable(namedRanges);
+  interface Node {
+    sheet: string;
+    coordinate: string;
+    ast: FormulaNode | FormulaParseError;
+    deps: string[];
+  }
+  const idOf = (sheet: string, coordinate: string) => `${sheet}\n${coordinate}`;
+  const nodes = new Map<string, Node>();
+  const formulaCellsBySheet = new Map<string, Array<{ id: string; column: number; row: number }>>();
 
-  for (const [coordinate, cell] of Object.entries(cells)) {
-    if (!cell.formula) continue;
-    try {
-      const ast = parseFormula(cell.formula);
-      asts.set(coordinate, ast);
-      const refs: Array<{ sheet?: string; column: string; row: number }> = [];
-      collectReferences(ast, refs);
-      const localDeps = new Set<string>();
-      for (const ref of refs) {
-        if (ref.sheet) continue; // cross-sheet refs aren't part of this sheet's cycle graph
-        localDeps.add(referenceCoordinate(ref));
+  for (const [sheet, cells] of Object.entries(sheets)) {
+    const list: Array<{ id: string; column: number; row: number }> = [];
+    for (const [coordinate, cell] of Object.entries(cells)) {
+      if (!cell.formula) continue;
+      const match = /^([A-Z]+)(\d+)$/.exec(coordinate);
+      const id = idOf(sheet, coordinate);
+      let ast: FormulaNode | FormulaParseError;
+      try {
+        ast = parseFormula(cell.formula);
+      } catch (error) {
+        if (!(error instanceof FormulaParseError)) throw error;
+        ast = error;
       }
-      deps.set(coordinate, localDeps);
-    } catch (error) {
-      if (error instanceof FormulaParseError) {
-        asts.set(coordinate, error);
-        deps.set(coordinate, new Set());
-      } else {
-        throw error;
+      nodes.set(id, { sheet, coordinate, ast, deps: [] });
+      if (match) list.push({ id, column: columnIndexFromId(match[1] as string), row: Number(match[2]) - 1 });
+    }
+    formulaCellsBySheet.set(sheet, list);
+  }
+
+  for (const node of nodes.values()) {
+    if (node.ast instanceof FormulaParseError) continue;
+    const cells: Ref[] = [];
+    const ranges: RangeRef[] = [];
+    collectReferences(node.ast, cells, ranges, names);
+    for (const ref of cells) {
+      const id = idOf(ref.sheet ?? node.sheet, referenceCoordinate(ref));
+      if (nodes.has(id)) node.deps.push(id);
+    }
+    for (const range of ranges) {
+      for (const candidate of formulaCellsBySheet.get(range.sheet ?? node.sheet) ?? []) {
+        if (candidate.column >= range.from.column && candidate.column <= range.to.column && candidate.row >= range.from.row && candidate.row <= range.to.row) node.deps.push(candidate.id);
       }
     }
   }
@@ -408,61 +492,57 @@ export function recalculateCells(cells: CellMap, options: RecalculateOptions = {
   const order: string[] = [];
   const stack: string[] = [];
 
-  function visit(coordinate: string): void {
-    const state = color.get(coordinate) ?? WHITE;
+  function visit(id: string): void {
+    const state = color.get(id) ?? WHITE;
     if (state === BLACK) return;
     if (state === GRAY) {
-      const cycleStart = stack.indexOf(coordinate);
-      for (const node of stack.slice(cycleStart)) cyclic.add(node);
+      for (const member of stack.slice(stack.indexOf(id))) cyclic.add(member);
       return;
     }
-    if (!deps.has(coordinate)) return; // not a formula cell — a plain input, not part of the graph
-    color.set(coordinate, GRAY);
-    stack.push(coordinate);
-    for (const dep of deps.get(coordinate) ?? []) visit(dep);
+    color.set(id, GRAY);
+    stack.push(id);
+    for (const dep of (nodes.get(id) as Node).deps) visit(dep);
     stack.pop();
-    color.set(coordinate, BLACK);
-    order.push(coordinate);
+    color.set(id, BLACK);
+    order.push(id);
   }
+  for (const id of nodes.keys()) visit(id);
 
-  for (const coordinate of asts.keys()) visit(coordinate);
+  const results = new Map<string, CellValue>();
 
-  const results: Record<string, CellValue> = {};
-
-  function lookupLocal(coordinate: string): CellValue {
-    if (cyclic.has(coordinate)) return errorValue("CYCLE");
-    if (results[coordinate]) return results[coordinate];
-    const cell = cells[coordinate];
-    if (!cell) return BLANK;
-    if (cell.formula) return BLANK; // not yet evaluated in this pass (shouldn't happen given topological order)
-    return cell.value ?? BLANK;
-  }
-
-  function resolveRef(ref: ReferenceRequest): CellValue {
-    if (ref.sheet) {
-      const sheetCells = options.resolveSheet?.(ref.sheet);
-      if (!sheetCells) return errorValue("REF");
+  function resolver(own: string): ReferenceResolver {
+    return (ref) => {
+      const sheet = ref.sheet ?? own;
+      const cells = sheets[sheet] ?? (ref.sheet ? external?.(sheet) : undefined);
+      if (!cells) return errorValue("REF");
       const coordinate = referenceCoordinate(ref);
-      const cell = sheetCells[coordinate];
-      if (!cell) return BLANK;
+      const id = idOf(sheet, coordinate);
+      if (cyclic.has(id)) return errorValue("CYCLE");
+      const computed = results.get(id);
+      if (computed) return computed;
+      const cell = cells[coordinate];
+      if (!cell || cell.formula) return BLANK;
       return cell.value ?? BLANK;
-    }
-    return lookupLocal(referenceCoordinate(ref));
+    };
   }
 
-  for (const coordinate of order) {
-    if (cyclic.has(coordinate)) continue;
-    const parsed = asts.get(coordinate);
-    if (parsed instanceof FormulaParseError) {
-      results[coordinate] = errorValue("NAME", parsed.message);
-      continue;
-    }
-    if (!parsed) continue;
-    results[coordinate] = evaluateNode(parsed, { resolveRef });
+  for (const id of order) {
+    if (cyclic.has(id)) continue;
+    const node = nodes.get(id) as Node;
+    results.set(id, node.ast instanceof FormulaParseError ? errorValue("NAME", node.ast.message) : evaluateNode(node.ast, { resolveRef: resolver(node.sheet), names }));
   }
-  for (const coordinate of cyclic) {
-    results[coordinate] = errorValue("CYCLE");
-  }
+  for (const id of cyclic) results.set(id, errorValue("CYCLE"));
 
-  return results;
+  const out: Record<string, Record<string, CellValue>> = {};
+  for (const sheet of Object.keys(sheets)) out[sheet] = {};
+  for (const [id, node] of nodes) out[node.sheet]![node.coordinate] = results.get(id) as CellValue;
+  return out;
+}
+
+/** Recalculates every formula cell in a single-sheet coordinate map, in dependency order, per
+ * spec/10-calculation.md. Returns a result only for cells that had a `formula` — plain value cells
+ * are inputs, not outputs. Cells participating in a circular dependency all resolve to CYCLE. */
+export function recalculateCells(cells: CellMap, options: RecalculateOptions = {}): Record<string, CellValue> {
+  const SELF = "\u0000self";
+  return recalculateSheets({ [SELF]: cells }, options.resolveSheet)[SELF] as Record<string, CellValue>;
 }

@@ -32,6 +32,7 @@ export async function loadWorkbookFromZip(data: Uint8Array | ArrayBuffer | Blob)
   const workbook: Workbook = {
     id: document.id,
     version: document.version,
+    ...(document.namedRanges ? { namedRanges: document.namedRanges } : {}),
     calculation: document.calculation,
     source: document.source,
     sheets: [],
@@ -83,6 +84,7 @@ export async function writeWorkbookToZip(workbook: Workbook): Promise<Uint8Array
   const document: WorkbookDocument = {
     id: workbook.id,
     version: workbook.version,
+    ...(workbook.namedRanges && workbook.namedRanges.length > 0 ? { namedRanges: workbook.namedRanges } : {}),
     calculation: workbook.calculation,
     source: workbook.source,
     sheets: [],

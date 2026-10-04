@@ -37,7 +37,7 @@ interface RefSpan {
   row: string;
 }
 
-const CELL_AT = /^(\$?)([A-Za-z]+)(\$?)(\d+)(?![A-Za-z0-9_$(])/;
+const CELL_AT = /^(\$?)([A-Za-z]+)(\$?)(\d+)(?![A-Za-z0-9_$.(])/;
 const BARE_SHEET_AT = /^([A-Za-z_][A-Za-z0-9_]*)!/;
 
 /** Finds every cell reference in the formula text, in order, skipping string literals. */
@@ -112,7 +112,7 @@ function scanReferences(source: string): RefSpan[] {
       continue;
     }
     if (/[A-Za-z_$]/.test(ch)) {
-      while (i < source.length && /[A-Za-z0-9_$]/.test(source[i] as string)) i++;
+      while (i < source.length && /[A-Za-z0-9_$.]/.test(source[i] as string)) i++;
       continue;
     }
     i++;

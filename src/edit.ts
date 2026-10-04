@@ -45,6 +45,31 @@ function parseCoordinate(coordinate: string): { column: number; rowNumber: numbe
   return { column: columnIndexFromId(match[1] as string), rowNumber: Number(match[2]) };
 }
 
+/** Rewrites every formula a cell's metadata carries: its own `formula`, and a validation rule's
+ * `formula1`/`formula2` when they begin with `=` (spec/15, "Reference rewriting"). */
+function rewriteCellFormulas(metadata: CellMetadata, rewrite: (formula: string) => string): CellMetadata {
+  let next = metadata;
+  if (next.formula) next = { ...next, formula: rewrite(next.formula) };
+  const validation = next.validation as Record<string, unknown> | undefined;
+  if (validation && typeof validation === "object") {
+    let changed: Record<string, unknown> | undefined;
+    for (const key of ["formula1", "formula2"]) {
+      const value = validation[key];
+      if (typeof value === "string" && value.startsWith("=")) changed = { ...(changed ?? validation), [key]: rewrite(value) };
+    }
+    if (changed) next = { ...next, validation: changed as CellMetadata["validation"] };
+  }
+  return next;
+}
+
+/** A name's `refersTo` has no home sheet: every reference in it is sheet-qualified. */
+const NO_HOME_SHEET = "\u0000";
+
+function rewriteNamedRanges(workbook: Workbook, rewrite: (formula: string) => string): Workbook {
+  if (!workbook.namedRanges) return workbook;
+  return { ...workbook, namedRanges: workbook.namedRanges.map((item) => ({ ...item, refersTo: rewrite(item.refersTo) })) };
+}
+
 // ---------------------------------------------------------------------------------------------
 // Structural edits: insert/delete rows and columns.
 
@@ -59,7 +84,7 @@ function applyAxisEdit(workbook: Workbook, target: number, edit: AxisEdit, resha
   const sheets = workbook.sheets.map((sheet, index) => {
     const rewritten: Record<string, CellMetadata> = {};
     for (const [coordinate, metadata] of Object.entries(sheet.cells ?? {})) {
-      const next = metadata.formula ? { ...metadata, formula: rewriteFormulaForAxisEdit(metadata.formula, sheet.name, targetSheet.name, edit) } : metadata;
+      const next = rewriteCellFormulas(metadata, (formula) => rewriteFormulaForAxisEdit(formula, sheet.name, targetSheet.name, edit));
       if (index !== target) {
         rewritten[coordinate] = next;
         continue;
@@ -83,7 +108,7 @@ function applyAxisEdit(workbook: Workbook, target: number, edit: AxisEdit, resha
     if (sheet.print) next = rewritePrint(next, targetSheet.name, edit);
     return reshape(next);
   });
-  return { ...workbook, sheets };
+  return rewriteNamedRanges({ ...workbook, sheets }, (formula) => rewriteFormulaForAxisEdit(formula, NO_HOME_SHEET, targetSheet.name, edit));
 }
 
 function rewritePrint(sheet: Sheet, name: string, edit: AxisEdit): Sheet {
@@ -206,15 +231,13 @@ export function addSheet(workbook: Workbook, options?: EditOptions): Workbook {
 }
 
 function rewriteAllFormulas(workbook: Workbook, rewrite: (formula: string) => string): Workbook {
-  return {
-    ...workbook,
-    sheets: workbook.sheets.map((sheet) => {
-      if (!sheet.cells) return sheet;
-      const cells: Record<string, CellMetadata> = {};
-      for (const [coordinate, metadata] of Object.entries(sheet.cells)) cells[coordinate] = metadata.formula ? { ...metadata, formula: rewrite(metadata.formula) } : metadata;
-      return { ...sheet, cells };
-    }),
-  };
+  const sheets = workbook.sheets.map((sheet) => {
+    if (!sheet.cells) return sheet;
+    const cells: Record<string, CellMetadata> = {};
+    for (const [coordinate, metadata] of Object.entries(sheet.cells)) cells[coordinate] = rewriteCellFormulas(metadata, rewrite);
+    return { ...sheet, cells };
+  });
+  return rewriteNamedRanges({ ...workbook, sheets }, rewrite);
 }
 
 /** Renames a sheet and rewrites every sheet-qualified reference to it. */

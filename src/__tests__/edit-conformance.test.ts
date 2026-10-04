@@ -119,6 +119,12 @@ describe.skipIf(!have)("csvx-spec/tests/edit/*.json", async () => {
     if ("columns" in e) perSheet(e.columns, (s) => s.columns);
     if ("records" in e) expect(target.records).toEqual(e.records);
     if ("cells" in e) expect(target.cells).toEqual(e.cells);
+    if ("namedRanges" in e) expect(result.namedRanges).toEqual(e.namedRanges);
+    if ("validationFormulas" in e) {
+      const validationFormulas = (sheet: any) =>
+        Object.fromEntries(Object.entries<any>(sheet.cells ?? {}).filter(([, m]) => m.validation?.formula1 || m.validation?.formula2).map(([k, m]) => [k, m.validation.formula1 ?? m.validation.formula2]));
+      perSheet(e.validationFormulas, validationFormulas);
+    }
     if ("styles" in e) expect(result.styles).toEqual(e.styles);
     if ("print" in e) expect(target.print ?? null).toEqual(e.print);
     if ("names" in e) expect(result.sheets.map((s) => s.name)).toEqual(e.names);
