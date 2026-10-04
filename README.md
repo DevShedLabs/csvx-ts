@@ -20,10 +20,18 @@ The initial pass provides the Phase 1 foundation, same shape as `csvx-go`:
 - Structural, load-time validation (`validate()` for paths, `validateBuffer()` for in-memory ZIP
   data — the latter is browser-safe and exported from `./browser` too)
 
-Not yet implemented: formula parsing/recalculation, XLSX import/export, full JSON-Schema
-conformance validation (that lives in `../csvx-spec/validator` for now), exact-duplicate-ZIP-entry
-rejection (see the comment on `assertSafeEntryNames` in `src/package.ts` for why that one specific
-check is a known gap rather than something faked).
+- A formula engine: parsing, evaluation, workbook-wide recalculation (ranges, cross-sheet
+  references, cycles), and workbook names
+- The edit operations of spec chapter 15 (`insertRows`, `deleteColumns`, `setCell`, `paste`,
+  `applyStyle`, `renameSheet`, ...), which rewrite formula references, names, validation formulas
+  and print settings as the spec requires
+- CSV import (spec 11.1) and text case conversion
+- Node-only helpers that call the `csvx` command-line tool for XLSX (see "XLSX" below)
+
+Not implemented here: XLSX parsing/writing (see "XLSX" for how to get it), print pagination, and
+full JSON-Schema conformance validation (that lives in `../csvx-spec/validator`; this engine does
+not carry its own copy, per `../csvx-spec/AGENTS.md` rule 3.3). Exact-duplicate-ZIP-entry rejection
+is a known gap — see the comment on `assertSafeEntryNames` in `src/package.ts`.
 
 ## Development rule
 
@@ -61,6 +69,45 @@ matching `.meta.json` sidecar.
 To exercise this library from the command line, use
 [`csvx-cli`](https://github.com/DevShedLabs/csvx-cli) — this package is a library only; see
 `AGENTS.md` for why CLI-shaped code does not belong here.
+
+## XLSX
+
+This engine does **not** read or write XLSX. The project keeps exactly one XLSX implementation (in
+`csvx-go`, driven by `csvx-cli`) so the formats cannot drift apart, and CSVX-to-XLSX export of an
+*edited* workbook does not exist in any engine yet. There are several ways to get XLSX data into a
+TypeScript program; pick by where your code runs:
+
+1. **`csvx` on the machine (recommended for Node).** Install
+   [`csvx-cli`](https://github.com/DevShedLabs/csvx-cli) and call it through this package:
+
+   ```ts
+   import { importXLSX, exportXLSX, isCSVXCLIAvailable } from "@devshedlabs/csvx-ts";
+
+   if (await isCSVXCLIAvailable()) {
+     const workbook = await importXLSX("report.xlsx");        // runs `csvx import`, then loads the package
+     await exportXLSX("report.csvx", "recovered.xlsx");        // runs `csvx export` (embedded original only)
+   }
+   ```
+
+   The tool is found as `csvx` on `PATH`, or via the `CSVX_CLI` environment variable, or
+   `{ cli: "/path/to/csvx" }`. If it is missing you get a `CSVXCLINotFoundError` that says so.
+   These helpers are Node-only and are not part of the `/browser` entry.
+
+2. **Convert ahead of time, then load `.csvx`.** Run `csvx import report.xlsx report.csvx` in a
+   build step, a script, or a CI job, and give your program the `.csvx`. Nothing XLSX-specific
+   remains at runtime, and this works in the browser too (`loadWorkbookFromZip`).
+
+3. **A small Go program or service.** If you cannot install the CLI, write a few lines of Go that
+   import [`csvx-go`](https://github.com/DevShedLabs/csvx-go) at the same tag and call
+   `csvx.Convert("report.xlsx", "report.csvx")`, run it as a sidecar process or behind an HTTP
+   endpoint, and load its output here. Prefer route 1 unless you need to embed the conversion in
+   your own Go service, since the CLI is that program already.
+
+4. **A browser app** cannot run a CLI. Use route 2 (convert before upload) or route 3 (a server
+   endpoint that converts and returns the `.csvx`), and keep XLSX parsing out of the client.
+
+If your workload is mostly XLSX in and out, consider using `csvx-go` directly: it has the same
+edit and formula operations as this package and also imports XLSX.
 
 ## Development
 

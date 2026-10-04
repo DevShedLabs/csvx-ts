@@ -4,6 +4,8 @@
 export * from "./model.js";
 export { loadWorkbookFromZip, writeWorkbookToZip, validateBuffer } from "./package.js";
 export { importCSVFile } from "./node.js";
+export { importXLSX, exportXLSX, isCSVXCLIAvailable, CSVXCLINotFoundError } from "./xlsx.js";
+export type { CSVXCLIOptions } from "./xlsx.js";
 export { openPackage, writePackage, openDirectory, packageDirectory, extractPackage } from "./node.js";
 export { parseCSV, stringifyCSV } from "./csv.js";
 export { importCSV, CSVSyntaxError, sheetIdFromName } from "./csv-import.js";
