@@ -6,6 +6,8 @@
 //   binary     = expression operator expression
 //   operator   = "+" "-" "*" "/" "%" "=" "!=" "<" "<=" ">" ">="
 //   reference  = [sheet "!"] cell
+//   cell       = ["$"] column ["$"] row
+//   ref-error  = "#REF!"
 //   range      = reference ":" reference
 //
 // Precedence (highest to lowest), per spec/06: unary signs, percent, multiplication/division,
@@ -16,6 +18,7 @@ export type FormulaNode =
   | { kind: "number"; value: string }
   | { kind: "string"; value: string }
   | { kind: "boolean"; value: boolean }
+  | { kind: "ref-error" }
   | { kind: "reference"; sheet?: string; column: string; row: number }
   | { kind: "range"; start: FormulaNode & { kind: "reference" }; end: FormulaNode & { kind: "reference" } }
   | { kind: "call"; name: string; args: FormulaNode[] }
@@ -35,9 +38,11 @@ type Token =
   | { type: "rparen" }
   | { type: "comma" }
   | { type: "colon" }
-  | { type: "bang" };
+  | { type: "bang" }
+  | { type: "ref-error" };
 
-const CELL_PATTERN = /^([A-Za-z]+)(\d+)$/;
+// `$` marks an absolute column or row; it has no effect on evaluation (spec/06-formulas.md).
+const CELL_PATTERN = /^\$?([A-Za-z]+)\$?(\d+)$/;
 
 function tokenize(source: string): Token[] {
   const tokens: Token[] = [];
@@ -66,6 +71,12 @@ function tokenize(source: string): Token[] {
     if (ch === ":") {
       tokens.push({ type: "colon" });
       i++;
+      continue;
+    }
+    if (ch === "#") {
+      if (source.slice(i, i + 5).toUpperCase() !== "#REF!") throw new FormulaParseError(`Unexpected character '#'`);
+      tokens.push({ type: "ref-error" });
+      i += 5;
       continue;
     }
     if (ch === "!") {
@@ -126,9 +137,9 @@ function tokenize(source: string): Token[] {
       i = j;
       continue;
     }
-    if (/[A-Za-z_]/.test(ch)) {
+    if (/[A-Za-z_$]/.test(ch)) {
       let j = i;
-      while (j < source.length && /[A-Za-z0-9_]/.test(source[j] as string)) j++;
+      while (j < source.length && /[A-Za-z0-9_$]/.test(source[j] as string)) j++;
       tokens.push({ type: "ident", value: source.slice(i, j) });
       i = j;
       continue;
@@ -184,6 +195,7 @@ export function parseFormula(source: string): FormulaNode {
     const token = next();
     if (token.type === "number") return { kind: "number", value: token.value };
     if (token.type === "string") return { kind: "string", value: token.value };
+    if (token.type === "ref-error") return { kind: "ref-error" };
     if (token.type === "lparen") {
       const expr = parseExpression();
       const close = next();

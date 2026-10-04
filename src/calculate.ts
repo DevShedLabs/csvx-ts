@@ -276,6 +276,8 @@ function evaluateNode(node: FormulaNode, ctx: EvalContext): CellValue {
       return { type: "string", value: node.value };
     case "boolean":
       return { type: "boolean", value: node.value };
+    case "ref-error":
+      return errorValue("REF");
     case "reference":
       return ctx.resolveRef({ sheet: node.sheet, column: node.column, row: node.row });
     case "range": {

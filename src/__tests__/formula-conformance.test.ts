@@ -47,10 +47,13 @@ const describeIfSpec = haveSpecChecked ? describe : describe.skip;
 
 describeIfSpec("csvx-spec/tests/formulas/*.json", async () => {
   const vectors = await loadVectors(FORMULAS_DIR);
-  it.each(vectors)("$vector.id ($file)", ({ vector }) => {
-    expect(vector.operation).toBe("evaluate");
-    const result = evaluateFormula(vector.input.formula, resolveFromCells(vector.input.cells));
-    expect(result).toEqual(vector.expected);
+  // A vector is either one case (input/expected at the top level) or a `cases` array of them.
+  const cases = vectors.flatMap(({ file, vector }) =>
+    (vector.cases ?? [{ input: vector.input, expected: vector.expected }]).map((c: any, i: number) => ({ file, id: `${vector.id}#${i + 1}`, operation: vector.operation, c })),
+  );
+  it.each(cases)("$id ($file)", ({ operation, c }) => {
+    expect(operation).toBe("evaluate");
+    expect(evaluateFormula(c.input.formula, resolveFromCells(c.input.cells))).toEqual(c.expected);
   });
 });
 
@@ -60,7 +63,7 @@ describeIfSpec("csvx-spec/tests/calculations/*.json", async () => {
     expect(vector.operation).toBe("recalculate");
     const cells: CellMap = {};
     for (const [coordinate, cell] of Object.entries(vector.input.cells as Record<string, any>)) {
-      cells[coordinate] = cell.formula ? { formula: cell.formula } : { value: cell.value };
+      cells[coordinate] = cell.formula ? { formula: cell.formula } : { value: cell.type ? cell : cell.value };
     }
     const result = recalculateCells(cells);
     for (const [coordinate, expected] of Object.entries(vector.expected as Record<string, unknown>)) {
