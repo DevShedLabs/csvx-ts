@@ -43,6 +43,18 @@ Specify → create conformance fixtures → implement → run tests
 
 The specification repository is the authority: `https://github.com/DevShedLabs/csvx-spec`.
 
+## Install
+
+```bash
+npm install @devshedlabs/csvx-ts          # once published to npm
+npm install github:DevShedLabs/csvx-ts#v0.1.11 --allow-git=all   # from a tag; builds on install
+```
+
+The package ships both ESM and CommonJS builds, so `import` and `require()` (and
+`require.resolve`) both work, including from an Electron main process. The version in
+`package.json` follows the shared csvx-* tag; `scripts/check-version.mjs` (run by `npm run check`)
+fails if it falls behind.
+
 ## Usage
 
 In Node:
@@ -74,7 +86,7 @@ To exercise this library from the command line, use
 
 This engine does **not** read or write XLSX. The project keeps exactly one XLSX implementation (in
 `csvx-go`, driven by `csvx-cli`) so the formats cannot drift apart, and CSVX-to-XLSX export of an
-*edited* workbook does not exist in any engine yet. There are several ways to get XLSX data into a
+*edited* workbook is done by `csvx-go` (via `csvx export`), not here. There are several ways to get XLSX data into a
 TypeScript program; pick by where your code runs:
 
 1. **`csvx` on the machine (recommended for Node).** Install
@@ -85,7 +97,7 @@ TypeScript program; pick by where your code runs:
 
    if (await isCSVXCLIAvailable()) {
      const workbook = await importXLSX("report.xlsx");        // runs `csvx import`, then loads the package
-     await exportXLSX("report.csvx", "recovered.xlsx");        // runs `csvx export` (embedded original only)
+     await exportXLSX("report.csvx", "report.xlsx");           // runs `csvx export`
    }
    ```
 

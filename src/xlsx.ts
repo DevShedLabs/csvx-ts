@@ -70,8 +70,9 @@ export async function importXLSX(filename: string, options?: CSVXCLIOptions): Pr
   }
 }
 
-/** Recovers the embedded original XLSX from a CSVX package by running `csvx export`. Edited
- * workbooks cannot be exported to XLSX yet by any engine (csvx-spec/CSVX-GAPS.md, item 2). */
+/** Writes a CSVX package to XLSX by running `csvx export`. An unmodified package returns the embedded
+ * original exactly; a modified one is written from its CSVX content (spec 14.9), which needs a
+ * `csvx` built with a csvx-go that has `ExportXLSX` (see csvx-spec/CSVX-GAPS.md, item 2). */
 export async function exportXLSX(csvxFilename: string, output: string, options?: CSVXCLIOptions): Promise<void> {
   await run(cliCommand(options), ["export", csvxFilename, output]);
 }

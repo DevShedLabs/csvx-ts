@@ -7,7 +7,7 @@
 // parsing — this entry point is what makes that possible without a Node runtime.
 
 export * from "./model.js";
-export { loadWorkbookFromZip, writeWorkbookToZip, validateBuffer } from "./package.js";
+export { loadWorkbookFromZip, writeWorkbookToZip, validateBuffer, validateWorkbook } from "./package.js";
 export { parseCSV, stringifyCSV } from "./csv.js";
 export { importCSV, CSVSyntaxError, sheetIdFromName } from "./csv-import.js";
 export type { CSVImportOptions, CSVImportResult, ImportWarning } from "./csv-import.js";
@@ -31,3 +31,5 @@ export { validateNamedRanges, InvalidNamedRangeError } from "./names.js";
 export type { NamedRangeDiagnostic } from "./names.js";
 export { translateFormula, rewriteFormulaForAxisEdit, rewriteFormulaForSheetChange, formatSheetName } from "./rewrite.js";
 export type { AxisEdit } from "./rewrite.js";
+export { paginate, usedRange } from "./paginate.js";
+export type { Page, Pagination } from "./paginate.js";

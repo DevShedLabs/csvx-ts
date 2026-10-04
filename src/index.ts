@@ -2,7 +2,7 @@
 // entry re-exports node.ts, which imports node:fs/promises and will not bundle for a browser.
 
 export * from "./model.js";
-export { loadWorkbookFromZip, writeWorkbookToZip, validateBuffer } from "./package.js";
+export { loadWorkbookFromZip, writeWorkbookToZip, validateBuffer, validateWorkbook } from "./package.js";
 export { importCSVFile } from "./node.js";
 export { importXLSX, exportXLSX, isCSVXCLIAvailable, CSVXCLINotFoundError } from "./xlsx.js";
 export type { CSVXCLIOptions } from "./xlsx.js";
@@ -31,3 +31,5 @@ export { validateNamedRanges, InvalidNamedRangeError } from "./names.js";
 export type { NamedRangeDiagnostic } from "./names.js";
 export { translateFormula, rewriteFormulaForAxisEdit, rewriteFormulaForSheetChange, formatSheetName } from "./rewrite.js";
 export type { AxisEdit } from "./rewrite.js";
+export { paginate, usedRange } from "./paginate.js";
+export type { Page, Pagination } from "./paginate.js";

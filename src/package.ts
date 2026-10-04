@@ -159,6 +159,22 @@ export async function validateBuffer(data: Uint8Array | ArrayBuffer | Blob): Pro
   return { valid: true, errors: [], warnings: [] };
 }
 
+/** Validates a workbook that exists only in memory — for example one that has been edited but not
+ * yet saved — by serializing it exactly as a save would and loading the result back, so what is
+ * checked is what would be written. Browser-safe. Like validateBuffer, this is a structural check
+ * (the package loads, resources decode, named ranges are valid); JSON-Schema conformance has one
+ * home, csvx-spec/validator (csvx-spec/AGENTS.md rule 3.3), which a Node host can run on the bytes
+ * from writeWorkbookToZip. */
+export async function validateWorkbook(workbook: Workbook): Promise<ValidationResult> {
+  let data: Uint8Array;
+  try {
+    data = await writeWorkbookToZip(workbook);
+  } catch (error) {
+    return invalidResult(diagnosticForError(error as Error));
+  }
+  return validateBuffer(data);
+}
+
 function buildSheetFromCSV(entry: WorkbookDocument["sheets"][number], csvText: string): Sheet {
   let header: string[];
   let records: string[][];

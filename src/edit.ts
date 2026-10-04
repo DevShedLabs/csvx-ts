@@ -22,8 +22,16 @@ export interface EditOptions {
   recalculate?: boolean;
 }
 
+/** After a supported edit the embedded XLSX source no longer describes the workbook, so its
+ * authority becomes `csvx` (spec/14-xlsx-interoperability.md, 14.2). */
+function markEdited(workbook: Workbook): Workbook {
+  if (workbook.source?.authority !== "original") return workbook;
+  return { ...workbook, source: { ...workbook.source, authority: "csvx" } };
+}
+
 function finish(workbook: Workbook, options?: EditOptions): Workbook {
-  return options?.recalculate === false ? workbook : recalculateWorkbook(workbook);
+  const edited = markEdited(workbook);
+  return options?.recalculate === false ? edited : recalculateWorkbook(edited);
 }
 
 function sheetIndex(workbook: Workbook, ref: string): number {

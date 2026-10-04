@@ -19,13 +19,20 @@ if [ ! -d node_modules ]; then
 	exit 1
 fi
 
+echo "check: package.json version vs newest tag..."
+node scripts/check-version.mjs
+
 echo "check: tsc --noEmit..."
 npx tsc --noEmit
 
 echo "check: vitest run (includes real-fixture + schema-validation checks)..."
 npx vitest run
 
-echo "check: tsc build..."
-npx tsc -p tsconfig.json
+echo "check: build (ESM + CommonJS)..."
+npm run build --silent
+
+echo "check: require() and import both resolve the package..."
+node -e "const m=require('@devshedlabs/csvx-ts');if(typeof m.insertRows!=='function')process.exit(1)"
+node --input-type=module -e "import * as m from '@devshedlabs/csvx-ts';if(typeof m.insertRows!=='function')process.exit(1)"
 
 echo "check: all checks passed"

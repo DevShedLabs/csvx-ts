@@ -120,6 +120,7 @@ describe.skipIf(!have)("csvx-spec/tests/edit/*.json", async () => {
     if ("columns" in e) perSheet(e.columns, (s) => s.columns);
     if ("records" in e) expect(target.records).toEqual(e.records);
     if ("cells" in e) expect(target.cells).toEqual(e.cells);
+    if ("sourceAuthority" in e) expect(result.source?.authority).toBe(e.sourceAuthority);
     if ("namedRanges" in e) expect(result.namedRanges).toEqual(e.namedRanges);
     if ("validationFormulas" in e) {
       const validationFormulas = (sheet: any) =>
