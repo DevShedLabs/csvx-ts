@@ -25,7 +25,9 @@ export function invalidResult(diagnostic: Diagnostic): ValidationResult {
 export function diagnosticForError(error: Error): Diagnostic {
   const message = error.message;
   let code = "INVALID_PACKAGE";
-  if (containsAny(message, "missing package entry", "missing manifest", "missing workbook")) {
+  if (containsAny(message, "INVALID_NAMED_RANGE")) {
+    code = "INVALID_NAMED_RANGE";
+  } else if (containsAny(message, "missing package entry", "missing manifest", "missing workbook")) {
     code = "MISSING_RESOURCE";
   } else if (containsAny(message, "decode", "malformed")) {
     code = "INVALID_JSON";

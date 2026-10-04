@@ -7,6 +7,7 @@ import path from "node:path";
 import { describe, expect, it } from "vitest";
 import {
   InvalidEditError,
+  validateNamedRanges,
   FormulaParseError,
   addSheet,
   applyStyle,
@@ -81,7 +82,7 @@ function run(operation: string, workbook: Workbook, a: Record<string, any>): Wor
     case "set-cell":
       return setCell(workbook, a.sheet, a.coordinate, a.text, OFF);
     case "paste":
-      return paste(workbook, a.sheet, a.anchor, a.rows, OFF);
+      return paste(workbook, a.sheet, a.anchor, a.rows, { ...OFF, from: a.from });
     case "apply-style":
       return applyStyle(workbook, a.sheet, a.coordinates, a.patch, OFF);
     case "clear-style":
@@ -152,5 +153,18 @@ describe.skipIf(!have)("csvx-spec/tests/invalid parse-formula vectors", async ()
       expect(vector.expected.valid).toBe(false);
       expect(() => parseFormula(vector.input)).toThrow(FormulaParseError);
     }
+  });
+});
+
+describe.skipIf(!have)("csvx-spec/tests/invalid named-range vectors", async () => {
+  const entries = (await readdir(INVALID_DIR)).filter((f) => f.startsWith("named-range-") && f.endsWith(".json")).sort();
+  const vectors = [];
+  for (const file of entries) vectors.push(JSON.parse(await readFile(path.join(INVALID_DIR, file), "utf8")));
+  it("found vectors", () => expect(vectors.length).toBeGreaterThan(0));
+  it.each(vectors)("$id", (vector) => {
+    expect(vector.operation).toBe("validate-named-ranges");
+    const diagnostics = validateNamedRanges(vector.input.namedRanges);
+    expect(diagnostics.length === 0).toBe(vector.expected.valid);
+    expect(diagnostics.map(({ code, name }) => ({ code, name }))).toEqual(vector.expected.errors);
   });
 });

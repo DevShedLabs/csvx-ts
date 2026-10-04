@@ -8,6 +8,7 @@ import { columnId } from "./columns.js";
 import { parseCSV, stringifyCSV } from "./csv.js";
 import { diagnosticForError, invalidResult } from "./diagnostics.js";
 import type { ValidationResult } from "./diagnostics.js";
+import { InvalidNamedRangeError, validateNamedRanges } from "./names.js";
 import type { CellMetadata, Column, Manifest, Print, Sheet, SourceMetadata, Style, Workbook, WorkbookDocument } from "./model.js";
 
 const MANIFEST_PATH = "manifest.json";
@@ -29,6 +30,8 @@ export async function loadWorkbookFromZip(data: Uint8Array | ArrayBuffer | Blob)
     throw new Error("invalid workbook resource");
   }
 
+  const nameProblems = validateNamedRanges(document.namedRanges);
+  if (nameProblems.length > 0) throw new InvalidNamedRangeError(nameProblems);
   const workbook: Workbook = {
     id: document.id,
     version: document.version,

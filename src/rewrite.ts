@@ -228,3 +228,30 @@ export function rewriteFormulaForSheetChange(formula: string, oldName: string, n
   }
   return applyReplacements(formula, replacements);
 }
+
+/** Translates a formula copied from one cell to another (spec/15, `paste` with `from`): every
+ * reference's relative column and row move by `columns` and `rows`, and parts marked absolute with
+ * `$` stay. A reference that would leave the sheet becomes `#REF!` (a whole range if either end
+ * would). */
+export function translateFormula(formula: string, rows: number, columns: number): string {
+  if (!parses(formula)) return formula;
+  const moved = (span: RefSpan): { column: string; row: string } | undefined => {
+    const column = span.colAbs ? columnIndexFromId(span.col) : columnIndexFromId(span.col) + columns;
+    const row = span.rowAbs ? Number(span.row) : Number(span.row) + rows;
+    if (column < 0 || row < 1) return undefined;
+    return { column: columnId(column), row: String(row) };
+  };
+  const text = (span: RefSpan, to: { column: string; row: string }) => `${span.colAbs}${to.column}${span.rowAbs}${to.row}`;
+  const replacements: Array<{ start: number; end: number; text: string }> = [];
+  for (const { a, b } of segments(formula, scanReferences(formula))) {
+    const first = moved(a);
+    const second = b ? moved(b) : undefined;
+    if (!first || (b && !second)) {
+      replacements.push({ start: a.sheetStart, end: (b ?? a).end, text: "#REF!" });
+      continue;
+    }
+    replacements.push({ start: a.start, end: a.end, text: text(a, first) });
+    if (b && second) replacements.push({ start: b.start, end: b.end, text: text(b, second) });
+  }
+  return applyReplacements(formula, replacements);
+}

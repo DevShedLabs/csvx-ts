@@ -357,7 +357,7 @@ function evaluateNode(node: FormulaNode, ctx: EvalContext): CellValue {
 /** Evaluates a formula string (including the leading "=") against a reference resolver. Parse
  * errors surface as a NAME error rather than throwing, since a formula cell with invalid syntax
  * is still a valid cell state the UI must be able to render. */
-export function evaluateFormula(formula: string, resolveRef: ReferenceResolver): CellValue {
+export function evaluateFormula(formula: string, resolveRef: ReferenceResolver, namedRanges?: ReadonlyArray<{ name: string; refersTo: string }>): CellValue {
   let ast: FormulaNode;
   try {
     ast = parseFormula(formula);
@@ -365,7 +365,7 @@ export function evaluateFormula(formula: string, resolveRef: ReferenceResolver):
     if (error instanceof FormulaParseError) return errorValue("NAME", error.message);
     throw error;
   }
-  return evaluateNode(ast, { resolveRef });
+  return evaluateNode(ast, { resolveRef, names: buildNameTable(namedRanges) });
 }
 
 export interface FormulaCellInput {

@@ -12,7 +12,7 @@ import { parseFormattedLiteral } from "./format.js";
 import { nextCellMetadata } from "./model.js";
 import type { CellMetadata, Column, Print, Sheet, Style, Workbook } from "./model.js";
 import { canonicalCellText, recalculateWorkbook } from "./recalculate.js";
-import { rewriteFormulaForAxisEdit, rewriteFormulaForSheetChange } from "./rewrite.js";
+import { rewriteFormulaForAxisEdit, rewriteFormulaForSheetChange, translateFormula } from "./rewrite.js";
 import type { AxisEdit } from "./rewrite.js";
 
 export class InvalidEditError extends Error {}
@@ -306,12 +306,19 @@ export function setCell(workbook: Workbook, sheet: string, coordinate: string, t
 }
 
 /** Applies a rectangle of texts, top-left at `anchor`, as one setCell each. Atomic: if any element
- * is invalid, nothing is applied. Formula text is stored verbatim. */
-export function paste(workbook: Workbook, sheet: string, anchor: string, rows: string[][], options?: EditOptions): Workbook {
+ * is invalid, nothing is applied. Formula text is stored verbatim unless `options.from` (the
+ * coordinate the rows were copied from) is given, in which case it is translated (spec/15). */
+export function paste(workbook: Workbook, sheet: string, anchor: string, rows: string[][], options?: EditOptions & { from?: string }): Workbook {
   const target = sheetIndex(workbook, sheet);
   const start = parseCoordinate(anchor);
+  const origin = options?.from === undefined ? undefined : parseCoordinate(options.from);
   const copy = cloneSheet(workbook.sheets[target] as Sheet);
-  rows.forEach((row, r) => row.forEach((text, c) => setCellOn(copy, workbook.styles, `${columnId(start.column + c)}${start.rowNumber + r}`, text)));
+  rows.forEach((row, r) =>
+    row.forEach((text, c) => {
+      const translated = origin && text.startsWith("=") ? translateFormula(text, start.rowNumber - origin.rowNumber, start.column - origin.column) : text;
+      setCellOn(copy, workbook.styles, `${columnId(start.column + c)}${start.rowNumber + r}`, translated);
+    }),
+  );
   return finish(replaceSheet(workbook, target, copy), options);
 }
 

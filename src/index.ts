@@ -25,5 +25,7 @@ export { formatValue, parseFormattedLiteral } from "./format.js";
 export { columnWidthToPixels, pixelsToColumnWidth, rowHeightToPixels, pixelsToRowHeight } from "./layout.js";
 export { insertRows, deleteRows, insertColumns, deleteColumns, addSheet, renameSheet, deleteSheet, setCell, paste, applyStyle, clearStyle, setPrint, InvalidEditError } from "./edit.js";
 export type { EditOptions } from "./edit.js";
-export { rewriteFormulaForAxisEdit, rewriteFormulaForSheetChange, formatSheetName } from "./rewrite.js";
+export { validateNamedRanges, InvalidNamedRangeError } from "./names.js";
+export type { NamedRangeDiagnostic } from "./names.js";
+export { translateFormula, rewriteFormulaForAxisEdit, rewriteFormulaForSheetChange, formatSheetName } from "./rewrite.js";
 export type { AxisEdit } from "./rewrite.js";
