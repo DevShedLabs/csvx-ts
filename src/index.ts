@@ -33,3 +33,5 @@ export { translateFormula, rewriteFormulaForAxisEdit, rewriteFormulaForSheetChan
 export type { AxisEdit } from "./rewrite.js";
 export { paginate, usedRange } from "./paginate.js";
 export type { Page, Pagination } from "./paginate.js";
+export { exportCSV, formatCSV } from "./csv-export.js";
+export type { CSVExportOptions, CSVExportResult, ExportWarning } from "./csv-export.js";

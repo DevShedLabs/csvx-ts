@@ -25,7 +25,7 @@ The initial pass provides the Phase 1 foundation, same shape as `csvx-go`:
 - The edit operations of spec chapter 15 (`insertRows`, `deleteColumns`, `setCell`, `paste`,
   `applyStyle`, `renameSheet`, ...), which rewrite formula references, names, validation formulas
   and print settings as the spec requires
-- CSV import (spec 11.1) and text case conversion
+- CSV import (spec 11.1), CSV export (spec 11.2: `exportCSV`) and text case conversion
 - Node-only helpers that call the `csvx` command-line tool for XLSX (see "XLSX" below)
 
 Not implemented here: XLSX parsing/writing (see "XLSX" for how to get it), print pagination, and

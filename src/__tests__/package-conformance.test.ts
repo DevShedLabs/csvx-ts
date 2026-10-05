@@ -12,7 +12,7 @@ const SPEC_ROOT = path.resolve(import.meta.dirname, "..", "..", "..", "csvx-spec
 
 async function vectorsWith(operation: string): Promise<any[]> {
   const found: any[] = [];
-  for (const dir of ["parsing", "invalid", "styles", "print"]) {
+  for (const dir of ["parsing", "invalid", "styles", "print", "values"]) {
     const base = path.join(SPEC_ROOT, "tests", dir);
     for (const file of (await readdir(base).catch(() => [])).filter((f) => f.endsWith(".json")).sort()) {
       const vector = JSON.parse(await readFile(path.join(base, file), "utf8"));
@@ -51,7 +51,13 @@ describe("round-trip vectors", async () => {
   const vectors = await vectorsWith("round-trip");
   it("found vectors", () => expect(vectors.length).toBeGreaterThan(0));
   it.each(vectors)("$id", async (vector) => {
-    if (vector.input.style) {
+    if (vector.input.sheet) {
+      const input = vector.input.sheet;
+      const sheet = { id: "sheet-1", name: "Sheet1", path: "sheets/sheet-1.csv", columns: input.columns, records: input.records, cells: input.cells ?? {} };
+      const loaded = await loadWorkbookFromZip(await writeWorkbookToZip({ ...baseWorkbook({}), sheets: [sheet as any] }));
+      const first = loaded.sheets[0]!;
+      expect({ columns: first.columns, records: first.records, ...(input.cells ? { cells: first.cells } : {}) }).toEqual(vector.expected.sheet);
+    } else if (vector.input.style) {
       const loaded = await loadWorkbookFromZip(await writeWorkbookToZip(baseWorkbook({ styles: [vector.input.style] })));
       expect(loaded.styles?.[0]).toEqual(vector.expected.style);
     } else {
@@ -63,5 +69,18 @@ describe("round-trip vectors", async () => {
       const actual: Record<string, unknown> = { id: first.id, name: first.name, print: first.print, columns: first.columns, rowHeights: first.rowHeights };
       for (const key of Object.keys(vector.expected.sheetMetadata)) expect(actual[key], key).toEqual(vector.expected.sheetMetadata[key]);
     }
+  });
+});
+
+describe("write-twice vectors (deterministic packages)", async () => {
+  const vectors = await vectorsWith("write-twice");
+  it("found vectors", () => expect(vectors.length).toBeGreaterThan(0));
+  it.each(vectors.flatMap((v) => v.input.packages.map((p: string) => [p, v])))("%s writes identical bytes twice", async (pkg, vector) => {
+    const workbook = await openDirectory(path.join(SPEC_ROOT, pkg as string));
+    const first = await writeWorkbookToZip(workbook);
+    // Let the clock move on, so a timestamp in the archive would show up.
+    await new Promise((resolve) => setTimeout(resolve, 1100));
+    const second = await writeWorkbookToZip(workbook);
+    expect(Buffer.from(first).equals(Buffer.from(second))).toBe(vector.expected.identical);
   });
 });

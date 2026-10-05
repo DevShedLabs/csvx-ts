@@ -12,6 +12,10 @@ import { InvalidNamedRangeError, validateNamedRanges } from "./names.js";
 import type { CellMetadata, Column, Manifest, Print, Sheet, SourceMetadata, Style, Workbook, WorkbookDocument } from "./model.js";
 
 const MANIFEST_PATH = "manifest.json";
+// A fixed timestamp on every entry, so writing the same workbook twice gives identical bytes (spec
+// 01-container.md: writers SHOULD use stable ordering and timestamps). ZIP's own epoch.
+const FILE_OPTIONS = { date: new Date(Date.UTC(1980, 0, 1)), createFolders: false };
+
 const SOURCE_PATH = "source/original.xlsx";
 const SOURCE_METADATA_PATH = "source/source.json";
 
@@ -128,13 +132,13 @@ export async function writeWorkbookToZip(workbook: Workbook): Promise<Uint8Array
     manifest.files.push(SOURCE_PATH, SOURCE_METADATA_PATH);
   }
 
-  zip.file(MANIFEST_PATH, JSON.stringify(manifest, null, 2));
-  zip.file("workbook.json", JSON.stringify(document, null, 2));
+  zip.file(MANIFEST_PATH, JSON.stringify(manifest, null, 2), FILE_OPTIONS);
+  zip.file("workbook.json", JSON.stringify(document, null, 2), FILE_OPTIONS);
 
   for (const sheet of workbook.sheets) {
     const path = sheet.path || `sheets/${sheet.id}.csv`;
     const header = sheet.columns.map((column) => column.name ?? "");
-    zip.file(path, stringifyCSV(header, sheet.records));
+    zip.file(path, stringifyCSV(header, sheet.records), FILE_OPTIONS);
 
     const metadataPath = needsMetadata(sheet) ? sheet.metadataPath || `sheets/${sheet.id}.meta.json` : undefined;
     if (metadataPath) {
@@ -146,16 +150,16 @@ export async function writeWorkbookToZip(workbook: Workbook): Promise<Uint8Array
         print: sheet.print,
         cells: sheet.cells,
       };
-      zip.file(metadataPath, JSON.stringify(metadata, null, 2));
+      zip.file(metadataPath, JSON.stringify(metadata, null, 2), FILE_OPTIONS);
     }
   }
 
   if (workbook.styles && workbook.styles.length > 0) {
-    zip.file("styles.json", JSON.stringify({ styles: workbook.styles }, null, 2));
+    zip.file("styles.json", JSON.stringify({ styles: workbook.styles }, null, 2), FILE_OPTIONS);
   }
   if (workbook.source && workbook.sourceBytes && workbook.sourceBytes.length > 0) {
-    zip.file(SOURCE_PATH, workbook.sourceBytes);
-    zip.file(SOURCE_METADATA_PATH, JSON.stringify(workbook.source, null, 2));
+    zip.file(SOURCE_PATH, workbook.sourceBytes, FILE_OPTIONS);
+    zip.file(SOURCE_METADATA_PATH, JSON.stringify(workbook.source, null, 2), FILE_OPTIONS);
   }
 
   return zip.generateAsync({ type: "uint8array" });

@@ -14,7 +14,7 @@ import type { Sheet, Style, Value, Workbook } from "./model.js";
 export function canonicalCellText(value: CellValue | Value | undefined): string {
   if (!value || value.type === "blank") return "";
   if (value.type === "error") return `#${value.code}`;
-  if (value.type === "boolean") return value.value ? "TRUE" : "FALSE";
+  if (value.type === "boolean") return value.value ? "true" : "false";
   return String(value.value ?? "");
 }
 

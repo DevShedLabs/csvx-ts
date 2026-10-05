@@ -1,3 +1,5 @@
+import { formatCSV } from "./csv-export.js";
+
 // A minimal RFC 4180 CSV reader/writer. CSV is the canonical sheet data layer (see README), so
 // parsing it is core engine logic, not something a consumer app should ever need to reimplement —
 // this is the one place it lives, mirroring csvx-go's csv.go.
@@ -87,12 +89,5 @@ function parseCSVRows(text: string): string[][] {
 /** Serializes a header and records back to RFC 4180 CSV text, using `\n` line endings to match
  * csvx-go's output (Go's encoding/csv defaults to `\n`, not `\r\n`) and existing examples/*.csv. */
 export function stringifyCSV(header: string[], records: string[][]): string {
-  return [header, ...records].map((row) => row.map(escapeCSVField).join(",")).join("\n") + "\n";
-}
-
-function escapeCSVField(value: string): string {
-  if (/[",\r\n]/.test(value)) {
-    return '"' + value.replace(/"/g, '""') + '"';
-  }
-  return value;
+  return formatCSV([header, ...records]);
 }

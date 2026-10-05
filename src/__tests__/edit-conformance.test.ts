@@ -63,7 +63,8 @@ function toWorkbook(input: any): Workbook {
   };
 }
 
-const OFF = { recalculate: false };
+// Vectors compare the model before recalculation unless a case sets input.recalculate.
+const OFF: { recalculate: boolean } = { recalculate: false };
 
 function run(operation: string, workbook: Workbook, a: Record<string, any>): Workbook {
   switch (operation) {
@@ -105,6 +106,7 @@ describe.skipIf(!have)("csvx-spec/tests/edit/*.json", async () => {
   it("found vectors", () => expect(cases.length).toBeGreaterThan(0));
   it.each(cases)("$name", ({ operation, case: c }) => {
     const workbook = toWorkbook(c.input.workbook);
+    OFF.recalculate = (c.input as any).recalculate === true;
     if (c.expected.valid === false) {
       expect(() => run(operation, workbook, c.input.args)).toThrow(InvalidEditError);
       return;

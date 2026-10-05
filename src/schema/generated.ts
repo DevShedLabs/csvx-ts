@@ -183,6 +183,23 @@ export interface CSVXWorkbook {
     refersTo: string;
     [k: string]: unknown;
   }[];
+  /**
+   * Provenance of an imported workbook (spec/14-xlsx-interoperability.md, 14.1); also written to source/source.json.
+   */
+  source?: {
+    format: "xlsx" | "xlsm";
+    filename: string;
+    sha256: string;
+    importedAt: string;
+    importer: string;
+    authority: "original" | "csvx";
+    features?: {
+      [k: string]: unknown;
+    };
+    mappings?: unknown;
+    warnings?: unknown[];
+    [k: string]: unknown;
+  };
   calculation?: {
     mode?: "automatic" | "manual" | "on-load";
     iteration?: boolean;
