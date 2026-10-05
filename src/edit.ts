@@ -189,8 +189,8 @@ function renumberColumns(columns: Column[]): Column[] {
   return columns.map((column, index) => ({ ...column, id: columnId(index) }));
 }
 
-/** Inserts `count` blank columns before the column with letter `at`. The new columns are named
- * `Column N`, N being the 1-based position at creation (spec/15). */
+/** Inserts `count` blank columns before the column with letter `at`. The new columns have the empty
+ * name (spec/03-sheets.md, spec/15). */
 export function insertColumns(workbook: Workbook, sheet: string, at: string, count = 1, options?: EditOptions): Workbook {
   assertCount(count);
   const target = sheetIndex(workbook, sheet);
@@ -202,7 +202,7 @@ export function insertColumns(workbook: Workbook, sheet: string, at: string, cou
     ...s,
     columns: renumberColumns([
       ...s.columns.slice(0, index),
-      ...Array.from({ length: count }, (_, offset) => ({ id: "", name: `Column ${index + offset + 1}` }) as Column),
+      ...Array.from({ length: count }, () => ({ id: "", name: "" }) as Column),
       ...s.columns.slice(index),
     ]),
     records: s.records.map((row) => [...row.slice(0, index), ...Array<string>(count).fill(""), ...row.slice(index)]),
@@ -227,14 +227,14 @@ export function deleteColumns(workbook: Workbook, sheet: string, columns: string
 // ---------------------------------------------------------------------------------------------
 // Sheets.
 
-/** Appends an empty sheet: one column named `Column 1` and no data rows. */
+/** Appends an empty sheet: one column with the empty name and no data rows. */
 export function addSheet(workbook: Workbook, options?: EditOptions): Workbook {
   const ids = new Set(workbook.sheets.map((sheet) => sheet.id));
   const names = new Set(workbook.sheets.map((sheet) => sheet.name));
   let n = workbook.sheets.length + 1;
   while (ids.has(`sheet-${n}`) || names.has(`Sheet ${n}`)) n++;
   const id = `sheet-${n}`;
-  const sheet: Sheet = { id, name: `Sheet ${n}`, path: `sheets/${id}.csv`, columns: [{ id: "A", name: "Column 1" } as Column], records: [], cells: {} };
+  const sheet: Sheet = { id, name: `Sheet ${n}`, path: `sheets/${id}.csv`, columns: [{ id: "A", name: "" } as Column], records: [], cells: {} };
   return finish({ ...workbook, sheets: [...workbook.sheets, sheet] }, options);
 }
 
@@ -278,7 +278,7 @@ function cloneSheet(sheet: Sheet): Sheet {
 function extendSheet(sheet: Sheet, rowNumber: number, column: number): void {
   while (sheet.columns.length <= column) {
     const index = sheet.columns.length;
-    sheet.columns.push({ id: columnId(index), name: `Column ${index + 1}` } as Column);
+    sheet.columns.push({ id: columnId(index), name: "" } as Column);
     for (const row of sheet.records) row.push("");
   }
   while (sheet.records.length < rowNumber - 1) sheet.records.push(Array<string>(sheet.columns.length).fill(""));
@@ -286,7 +286,6 @@ function extendSheet(sheet: Sheet, rowNumber: number, column: number): void {
 
 function setCellOn(sheet: Sheet, styles: Style[] | undefined, coordinate: string, text: string): void {
   const { column, rowNumber } = parseCoordinate(coordinate);
-  if (rowNumber === 1 && text === "") throw new InvalidEditError("A column name must not be empty");
   extendSheet(sheet, rowNumber, column);
   const isFormula = text.startsWith("=");
   const metadata = nextCellMetadata(sheet.cells?.[coordinate], isFormula ? text : undefined);

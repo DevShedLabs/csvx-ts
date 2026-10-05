@@ -15,11 +15,6 @@ export function parseCSV(text: string): ParsedCSV {
   if (!header || header.length === 0) {
     throw new Error("CSV must contain a header row");
   }
-  header.forEach((name, index) => {
-    if (name === "") {
-      throw new Error(`CSV header column ${index + 1} is empty`);
-    }
-  });
   const records = rows.slice(1);
   records.forEach((record, row) => {
     if (record.length !== header.length) {

@@ -75,20 +75,14 @@ export function importCSV(input: string | Uint8Array, options: CSVImportOptions 
   const headerWidth = header.length;
   const width = records.reduce((max, record) => Math.max(max, record.length), headerWidth);
   while (header.length < width) header.push("");
-  header = header.map((value, index) => {
-    if (value !== "") return value;
-    const synthesized = `Column ${index + 1}`;
-    if (hasHeader && index < headerWidth) {
-      warnings.push({ location: "record 1", reason: `header field ${index + 1} is empty; named "${synthesized}"` });
-    }
-    return synthesized;
-  });
+  // An empty header field is legal (spec 03-sheets.md): the column simply has the empty name, and the
+  // importer invents nothing.
 
   const firstData = hasHeader ? 2 : 1;
   records = records.map((record, index) => {
     const location = `record ${firstData + index}`;
     if (hasHeader && record.length > headerWidth) {
-      warnings.push({ location, reason: `has ${record.length} fields; header has ${headerWidth}, added columns named Column N` });
+      warnings.push({ location, reason: `has ${record.length} fields; header has ${headerWidth}, added columns with the empty name` });
     }
     if (record.length < width) {
       warnings.push({ location, reason: `has ${record.length} fields; padded to ${width}` });

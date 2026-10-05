@@ -27,13 +27,15 @@ describe("row and coordinate convention", () => {
     }
   });
 
-  it("reads the header row as the column names, and a name equal to its own letter as blank", async () => {
+  it("reads the header row as the column names; an empty name is empty and a letter-like name is a name", async () => {
     const workbook = await openDirectory(path.join(SPEC_ROOT, "examples", "formulas.csvx"));
     const sheet = workbook.sheets[0]!;
     expect(rawCellText(sheet, HEADER_ROW, 0)).toBe("Quantity");
     expect(rawCellText(sheet, 0, 0)).toBe("2");
-    const placeholder = { ...sheet, columns: sheet.columns.map((column) => ({ ...column, name: column.id })) };
-    expect(rawCellText(placeholder, HEADER_ROW, 1)).toBe("");
+    const blank = { ...sheet, columns: sheet.columns.map((column) => ({ ...column, name: "" })) };
+    expect(rawCellText(blank, HEADER_ROW, 1)).toBe("");
+    const lettered = { ...sheet, columns: sheet.columns.map((column) => ({ ...column, name: column.id })) };
+    expect(rawCellText(lettered, HEADER_ROW, 1)).toBe("B");
   });
 });
 

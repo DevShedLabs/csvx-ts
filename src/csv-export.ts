@@ -38,6 +38,12 @@ export interface CSVExportResult {
 export function formatCSV(rows: string[][], delimiter = ","): string {
   let out = "";
   for (const row of rows) {
+    // A record of exactly one empty field is written as "" so it is not mistaken for a blank line,
+    // which readers skip (spec 11.1, 11.2).
+    if (row.length === 1 && row[0] === "") {
+      out += '""\n';
+      continue;
+    }
     out += row.map((field) => (field.includes(delimiter) || /["\r\n]/.test(field) ? `"${field.replace(/"/g, '""')}"` : field)).join(delimiter) + "\n";
   }
   return out;

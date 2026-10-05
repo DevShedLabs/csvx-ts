@@ -16,8 +16,15 @@ describe("CSV quoting", () => {
     expect(parsed.records).toEqual(records);
   });
 
-  it("rejects a header with an empty column name", () => {
-    expect(() => parseCSV("A,,C\n1,2,3\n")).toThrow(/empty/);
+  it("accepts an empty column name (spec 03-sheets.md) and writes it back unchanged", () => {
+    const parsed = parseCSV("A,,C\n1,2,3\n");
+    expect(parsed.header).toEqual(["A", "", "C"]);
+    expect(stringifyCSV(parsed.header, parsed.records)).toBe("A,,C\n1,2,3\n");
+  });
+
+  it("writes a record of one empty field as \"\" and reads it back as that field", () => {
+    expect(stringifyCSV([""], [[""], ["x"]])).toBe('""\n""\nx\n');
+    expect(parseCSV('""\n""\nx\n')).toEqual({ header: [""], records: [[""], ["x"]] });
   });
 
   it("rejects a record with the wrong number of fields", () => {

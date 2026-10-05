@@ -33,13 +33,10 @@ export function indicesForCoordinate(coordinate: string): { column: number; row:
   return { column: columnIndexFromId(match[1] as string), row: rowIndexFor(Number(match[2])) };
 }
 
-/** A cell's raw text. For the header row that is the column name, except that a name equal to the
- * column's own letter is the placeholder an importer writes for an empty header cell
- * (spec/14-xlsx-interoperability.md, 14.7) and reads as blank. */
+/** A cell's raw text. For the header row that is the column name, which may be empty. */
 export function rawCellText(sheet: Pick<Sheet, "columns" | "records"> | undefined, row: number, column: number): string {
   if (row < 0) {
-    const name = sheet?.columns?.[column]?.name ?? "";
-    return name === columnId(column) ? "" : name;
+    return sheet?.columns?.[column]?.name ?? "";
   }
   return sheet?.records?.[row]?.[column] ?? "";
 }
