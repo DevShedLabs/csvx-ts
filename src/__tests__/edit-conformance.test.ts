@@ -4,10 +4,12 @@
 // operation leaves it (spec/15-edit-operations.md).
 import { readFile, readdir, stat } from "node:fs/promises";
 import path from "node:path";
+import JSZip from "jszip";
 import { describe, expect, it } from "vitest";
 import {
   InvalidEditError,
   validateNamedRanges,
+  validateBuffer,
   FormulaParseError,
   addSheet,
   applyStyle,
@@ -167,5 +169,23 @@ describe.skipIf(!have)("csvx-spec/tests/invalid named-range vectors", async () =
     const diagnostics = validateNamedRanges(vector.input.namedRanges);
     expect(diagnostics.length === 0).toBe(vector.expected.valid);
     expect(diagnostics.map(({ code, name }) => ({ code, name }))).toEqual(vector.expected.errors);
+  });
+});
+
+describe.skipIf(!have)("csvx-spec/tests/invalid load-sheet vectors", async () => {
+  const entries = (await readdir(INVALID_DIR)).filter((f) => f.startsWith("column-name-") && f.endsWith(".json")).sort();
+  const vectors = [];
+  for (const file of entries) vectors.push(JSON.parse(await readFile(path.join(INVALID_DIR, file), "utf8")));
+  it("found vectors", () => expect(vectors.length).toBeGreaterThan(0));
+  it.each(vectors)("$id", async (vector) => {
+    expect(vector.operation).toBe("load-sheet");
+    const zip = new JSZip();
+    zip.file("manifest.json", JSON.stringify({ format: "csvx", version: "1.0", workbook: "workbook.json", files: [] }));
+    zip.file("workbook.json", JSON.stringify({ id: "book", version: "1.0", sheets: [{ id: "sheet-1", name: "Sheet1", path: "sheets/sheet-1.csv", metadata: "sheets/sheet-1.meta.json" }] }));
+    zip.file("sheets/sheet-1.csv", vector.input.csv);
+    zip.file("sheets/sheet-1.meta.json", JSON.stringify({ id: "sheet-1", name: "Sheet1", ...vector.input.metadata }));
+    const result = await validateBuffer(await zip.generateAsync({ type: "uint8array" }));
+    expect(result.valid).toBe(vector.expected.valid);
+    expect(result.errors.map((e) => ({ code: e.code }))).toEqual(vector.expected.errors);
   });
 });

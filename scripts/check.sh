@@ -35,4 +35,11 @@ echo "check: require() and import both resolve the package..."
 node -e "const m=require('@devshedlabs/csvx-ts');if(typeof m.insertRows!=='function')process.exit(1)"
 node --input-type=module -e "import * as m from '@devshedlabs/csvx-ts';if(typeof m.insertRows!=='function')process.exit(1)"
 
+echo "check: spec coverage (csvx-spec/tools/coverage.mjs)..."
+if [ -f ../csvx-spec/tools/coverage.mjs ] && command -v node >/dev/null 2>&1; then
+	node ../csvx-spec/tools/coverage.mjs
+else
+	echo "check: csvx-spec checkout or node not found - skipping the coverage check" >&2
+fi
+
 echo "check: all checks passed"

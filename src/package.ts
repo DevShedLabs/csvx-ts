@@ -77,6 +77,19 @@ export async function loadWorkbookFromZip(data: Uint8Array | ArrayBuffer | Blob)
 }
 
 /** Serializes a workbook to an in-memory ZIP buffer (the contents of a .csvx file). */
+/** Whether a sheet has anything the CSV cannot hold, so it needs a metadata sidecar (spec/03-sheets.md):
+ * column types or widths or other properties, row heights, cell metadata, or print settings. One
+ * decision, used for both the workbook.json reference and the file itself, so they cannot disagree. */
+function needsMetadata(sheet: Sheet): boolean {
+  return (
+    Boolean(sheet.metadataPath) ||
+    Boolean(sheet.print) ||
+    Object.keys(sheet.cells ?? {}).length > 0 ||
+    Object.keys(sheet.rowHeights ?? {}).length > 0 ||
+    sheet.columns.some((column) => Object.keys(column).some((key) => key !== "id" && key !== "name"))
+  );
+}
+
 export async function writeWorkbookToZip(workbook: Workbook): Promise<Uint8Array> {
   if (!workbook.id || !workbook.version || workbook.sheets.length === 0) {
     throw new Error("workbook requires an id, version, and at least one sheet");
@@ -103,7 +116,7 @@ export async function writeWorkbookToZip(workbook: Workbook): Promise<Uint8Array
       throw new Error("sheet requires an id and name");
     }
     const path = sheet.path || `sheets/${sheet.id}.csv`;
-    const metadataPath = sheet.metadataPath || ((sheet.cells && Object.keys(sheet.cells).length > 0) || sheet.print ? `sheets/${sheet.id}.meta.json` : undefined);
+    const metadataPath = needsMetadata(sheet) ? sheet.metadataPath || `sheets/${sheet.id}.meta.json` : undefined;
     document.sheets.push({ id: sheet.id, name: sheet.name, path, ...(metadataPath ? { metadata: metadataPath } : {}) });
     manifest.files.push(path);
     if (metadataPath) {
@@ -123,7 +136,7 @@ export async function writeWorkbookToZip(workbook: Workbook): Promise<Uint8Array
     const header = sheet.columns.map((column) => column.name ?? "");
     zip.file(path, stringifyCSV(header, sheet.records));
 
-    const metadataPath = sheet.metadataPath || (sheet.cells && Object.keys(sheet.cells).length > 0 ? `sheets/${sheet.id}.meta.json` : undefined);
+    const metadataPath = needsMetadata(sheet) ? sheet.metadataPath || `sheets/${sheet.id}.meta.json` : undefined;
     if (metadataPath) {
       const metadata = {
         id: sheet.id,
@@ -208,6 +221,12 @@ function applySheetMetadata(sheet: Sheet, metadataText: string, entry: WorkbookD
     if (resource.columns.length !== sheet.columns.length) {
       throw new Error(`sheet "${sheet.name}" metadata column count does not match CSV`);
     }
+    resource.columns.forEach((column, index) => {
+      const header = sheet.columns[index]?.name;
+      if (column.name !== undefined && column.name !== header) {
+        throw new Error(`COLUMN_NAME_MISMATCH: sheet "${sheet.name}" column ${columnId(index)} is "${header}" in the CSV header but "${column.name}" in its metadata`);
+      }
+    });
     sheet.columns = resource.columns;
   }
   sheet.rowHeights = resource.rowHeights;
