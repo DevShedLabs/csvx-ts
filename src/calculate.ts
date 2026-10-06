@@ -10,6 +10,7 @@
 import { Decimal } from "decimal.js";
 import { columnIndexFromId } from "./columns.js";
 import { FormulaParseError, parseFormula, type FormulaNode } from "./formula.js";
+import { foldSheetName } from "./sheet-names.js";
 
 export type CellValueType = "blank" | "boolean" | "integer" | "decimal" | "string" | "date" | "time" | "datetime" | "error";
 
@@ -439,6 +440,11 @@ export function recalculateSheets(
   namedRanges?: ReadonlyArray<{ name: string; refersTo: string }>,
 ): Record<string, Record<string, CellValue>> {
   const names = buildNameTable(namedRanges);
+  // A qualifier matches a sheet ignoring ASCII case (spec/06); `canon` maps the folded spelling to
+  // the sheet's own name, and the first in key order wins if a caller passed names that collide.
+  const canon = new Map<string, string>();
+  for (const name of Object.keys(sheets)) if (!canon.has(foldSheetName(name))) canon.set(foldSheetName(name), name);
+  const canonical = (name: string) => canon.get(foldSheetName(name)) ?? name;
   interface Node {
     sheet: string;
     coordinate: string;
@@ -474,11 +480,11 @@ export function recalculateSheets(
     const ranges: RangeRef[] = [];
     collectReferences(node.ast, cells, ranges, names);
     for (const ref of cells) {
-      const id = idOf(ref.sheet ?? node.sheet, referenceCoordinate(ref));
+      const id = idOf(ref.sheet === undefined ? node.sheet : canonical(ref.sheet), referenceCoordinate(ref));
       if (nodes.has(id)) node.deps.push(id);
     }
     for (const range of ranges) {
-      for (const candidate of formulaCellsBySheet.get(range.sheet ?? node.sheet) ?? []) {
+      for (const candidate of formulaCellsBySheet.get(range.sheet === undefined ? node.sheet : canonical(range.sheet)) ?? []) {
         if (candidate.column >= range.from.column && candidate.column <= range.to.column && candidate.row >= range.from.row && candidate.row <= range.to.row) node.deps.push(candidate.id);
       }
     }
@@ -512,7 +518,7 @@ export function recalculateSheets(
 
   function resolver(own: string): ReferenceResolver {
     return (ref) => {
-      const sheet = ref.sheet ?? own;
+      const sheet = ref.sheet === undefined ? own : canonical(ref.sheet);
       const cells = sheets[sheet] ?? (ref.sheet ? external?.(sheet) : undefined);
       if (!cells) return errorValue("REF");
       const coordinate = referenceCoordinate(ref);

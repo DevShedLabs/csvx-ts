@@ -29,6 +29,8 @@ export function diagnosticForError(error: Error): Diagnostic {
     code = "MISSING_MANIFEST";
   } else if (containsAny(message, "COLUMN_NAME_MISMATCH")) {
     code = "COLUMN_NAME_MISMATCH";
+  } else if (containsAny(message, "DUPLICATE_SHEET_NAME")) {
+    code = "DUPLICATE_SHEET_NAME";
   } else if (containsAny(message, "INVALID_NAMED_RANGE")) {
     code = "INVALID_NAMED_RANGE";
   } else if (containsAny(message, "missing package entry", "missing manifest", "missing workbook")) {

@@ -5,6 +5,7 @@
 
 import { columnId, columnIndexFromId } from "./columns.js";
 import { FormulaParseError, parseFormula } from "./formula.js";
+import { sameSheetName } from "./sheet-names.js";
 
 /** One axis of a structural edit. Rows are numbered 1-based (A1 row numbers, header = 1) and
  * columns 0-based; the mapping functions work in whichever convention the caller's axis uses. */
@@ -175,7 +176,7 @@ export function rewriteFormulaForAxisEdit(formula: string, ownSheet: string, tar
   const replacements: Array<{ start: number; end: number; text: string }> = [];
   for (const segment of segments(formula, scanReferences(formula))) {
     const { a, b } = segment;
-    const targets = (a.sheet ?? b?.sheet ?? ownSheet) === targetSheet;
+    const targets = sameSheetName(a.sheet ?? b?.sheet ?? ownSheet, targetSheet);
     if (!targets) continue;
     if (!b) {
       const index = indexOf(a, edit.axis);
@@ -217,7 +218,7 @@ export function rewriteFormulaForSheetChange(formula: string, oldName: string, n
   const replacements: Array<{ start: number; end: number; text: string }> = [];
   for (const { a, b } of segments(formula, scanReferences(formula))) {
     const sheet = a.sheet ?? b?.sheet;
-    if (sheet !== oldName) continue;
+    if (sheet === undefined || !sameSheetName(sheet, oldName)) continue;
     if (newName === undefined) {
       replacements.push({ start: a.sheetStart, end: (b ?? a).end, text: "#REF!" });
       continue;

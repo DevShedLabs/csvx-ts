@@ -116,6 +116,15 @@ export interface CSVXStyles {
     id: string;
     numberFormat?: string;
     font?: {
+      name?: string;
+      /**
+       * Font size in points (spec/08-styles.md); default 11.
+       */
+      size?: number;
+      bold?: boolean;
+      italic?: boolean;
+      underline?: boolean;
+      color?: string;
       [k: string]: unknown;
     };
     fill?: {

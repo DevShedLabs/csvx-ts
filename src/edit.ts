@@ -14,6 +14,7 @@ import type { CellMetadata, Column, Print, Sheet, Style, Workbook } from "./mode
 import { canonicalCellText, recalculateWorkbook } from "./recalculate.js";
 import { rewriteFormulaForAxisEdit, rewriteFormulaForSheetChange, translateFormula } from "./rewrite.js";
 import type { AxisEdit } from "./rewrite.js";
+import { foldSheetName, sameSheetName } from "./sheet-names.js";
 
 export class InvalidEditError extends Error {}
 
@@ -230,9 +231,9 @@ export function deleteColumns(workbook: Workbook, sheet: string, columns: string
 /** Appends an empty sheet: one column with the empty name and no data rows. */
 export function addSheet(workbook: Workbook, options?: EditOptions): Workbook {
   const ids = new Set(workbook.sheets.map((sheet) => sheet.id));
-  const names = new Set(workbook.sheets.map((sheet) => sheet.name));
+  const names = new Set(workbook.sheets.map((sheet) => foldSheetName(sheet.name)));
   let n = workbook.sheets.length + 1;
-  while (ids.has(`sheet-${n}`) || names.has(`Sheet ${n}`)) n++;
+  while (ids.has(`sheet-${n}`) || names.has(foldSheetName(`Sheet ${n}`))) n++;
   const id = `sheet-${n}`;
   const sheet: Sheet = { id, name: `Sheet ${n}`, path: `sheets/${id}.csv`, columns: [{ id: "A", name: "" } as Column], records: [], cells: {} };
   return finish({ ...workbook, sheets: [...workbook.sheets, sheet] }, options);
@@ -253,7 +254,7 @@ export function renameSheet(workbook: Workbook, sheet: string, name: string, opt
   const target = sheetIndex(workbook, sheet);
   const current = workbook.sheets[target] as Sheet;
   if (name === "" || [...name].length > 255 || /[:\u0000-\u001f\u007f]/.test(name)) throw new InvalidEditError(`Invalid sheet name: ${JSON.stringify(name)}`);
-  if (workbook.sheets.some((item, i) => i !== target && item.name === name)) throw new InvalidEditError(`Sheet name already in use: ${name}`);
+  if (workbook.sheets.some((item, i) => i !== target && sameSheetName(item.name, name))) throw new InvalidEditError(`Sheet name already in use: ${name}`);
   const renamed = replaceSheet(workbook, target, { ...current, name });
   return finish(rewriteAllFormulas(renamed, (formula) => rewriteFormulaForSheetChange(formula, current.name, name)), options);
 }

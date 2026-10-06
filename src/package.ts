@@ -10,6 +10,7 @@ import { diagnosticForError, invalidResult } from "./diagnostics.js";
 import type { ValidationResult } from "./diagnostics.js";
 import { InvalidNamedRangeError, validateNamedRanges } from "./names.js";
 import type { CellMetadata, Column, Manifest, Print, Sheet, SourceMetadata, Style, Workbook, WorkbookDocument } from "./model.js";
+import { checkSheetNames } from "./sheet-names.js";
 
 const MANIFEST_PATH = "manifest.json";
 // A fixed timestamp on every entry, so writing the same workbook twice gives identical bytes (spec
@@ -34,6 +35,7 @@ export async function loadWorkbookFromZip(data: Uint8Array | ArrayBuffer | Blob)
     throw new Error("invalid workbook resource");
   }
 
+  checkSheetNames(document.sheets);
   const nameProblems = validateNamedRanges(document.namedRanges);
   if (nameProblems.length > 0) throw new InvalidNamedRangeError(nameProblems);
   const workbook: Workbook = {

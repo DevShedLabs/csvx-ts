@@ -14,6 +14,7 @@
 // Precedence (highest to lowest), per spec/06: unary signs, percent, multiplication/division,
 // addition/subtraction, then comparisons. This module only produces an AST — evaluation lives in
 // calculate.ts, which is where the actual arithmetic/function semantics belong.
+import { sameSheetName } from "./sheet-names.js";
 
 export type FormulaNode =
   | { kind: "number"; value: string }
@@ -263,6 +264,11 @@ export function parseFormula(source: string): FormulaNode {
         }
       } else {
         throw new FormulaParseError("Expected reference after ':'");
+      }
+      // Core 1.0 has no three-dimensional ranges, and `B2:Sales!B10` is ambiguous (spec/06): a
+      // qualified second end needs the same qualifier on the first.
+      if (end.sheet !== undefined && (start.sheet === undefined || !sameSheetName(start.sheet, end.sheet))) {
+        throw new FormulaParseError("A range's ends must be on the same sheet");
       }
       return { kind: "range", start, end };
     }
