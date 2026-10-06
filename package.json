@@ -1,6 +1,6 @@
 {
 	"name": "@devshedlabs/csvx-ts",
-	"version": "0.1.14",
+	"version": "0.1.15",
 	"description": "TypeScript engine for the CSVX specification: load, represent, edit, and write CSVX workbooks as data structures. No CLI \u2014 see csvx-cli for that.",
 	"type": "module",
 	"main": "./dist/cjs/index.js",
